@@ -75,7 +75,7 @@ export function createOrcaRouterMcpServer(opts: CreateServerOptions = {}): Built
   const server = new Server(
     {
       name: opts.serverName ?? "@orcarouter/mcp",
-      version: opts.serverVersion ?? "1.1.0",
+      version: opts.serverVersion ?? "1.1.2",
     },
     {
       capabilities: {

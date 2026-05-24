@@ -4,6 +4,18 @@ All notable changes to `@orcarouter/mcp` follow the
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and this
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.1.2
+
+### Changed
+
+- **Repository moved.** The canonical source now lives at
+  `github.com/Continuum-AI-Corp/orcarouter-mcp-server`. Earlier
+  versions (`1.0.0` / `1.1.0`) were unpublished from the registry;
+  this is the first release under the new repository anchor.
+- **SDK code is identical to 1.1.0** — no functional changes. Only
+  the `repository.url` / `bugs.url` / `homepage` fields in
+  `package.json` and absolute URLs in the README were updated.
+
 ## v1.1.0
 
 ### Changed

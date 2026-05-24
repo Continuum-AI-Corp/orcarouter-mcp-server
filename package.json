@@ -1,0 +1,55 @@
+{
+  "name": "@orcarouter/mcp",
+  "version": "1.1.0",
+  "description": "Official Model Context Protocol server for OrcaRouter — an OpenAI-compatible LLM API gateway.",
+  "license": "MIT",
+  "author": "OrcaRouter",
+  "homepage": "https://github.com/Continuum-AI-Corp/orcarouter-mcp-server#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Continuum-AI-Corp/orcarouter-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Continuum-AI-Corp/orcarouter-mcp-server/issues"
+  },
+  "type": "module",
+  "bin": {
+    "orcarouter-mcp": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "assets"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "msw": "^2.4.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "orcarouter",
+    "llm",
+    "ai-gateway"
+  ]
+}

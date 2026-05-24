@@ -34,7 +34,7 @@ interface ChatCompletionResponse {
 
 const DEFAULT_MODEL = "orcarouter/auto";
 const DEFAULT_TEMPERATURE = 0.7;
-const DEFAULT_MAX_TOKENS = 2000;
+const DEFAULT_MAX_TOKENS = 10000;
 
 // OpenAI's reasoning-model line (gpt-5 / o-series) rejects `max_tokens` and
 // instead requires `max_completion_tokens` on the wire. This SDK-side helper
@@ -106,7 +106,7 @@ export const chatTool: ToolDefinition<ChatInput> = {
         type: "integer",
         default: DEFAULT_MAX_TOKENS,
         description:
-          "Maximum tokens to generate (default 2000). Automatically " +
+          "Maximum tokens to generate (default 10000). Automatically " +
           "translated to max_completion_tokens for OpenAI reasoning models.",
       },
       temperature: {
@@ -203,7 +203,7 @@ export const chatTool: ToolDefinition<ChatInput> = {
     }
 
     // ------------------------------------------------------------------
-    // Apply defaults: temperature=0.7, max_tokens=2000. max_tokens is
+    // Apply defaults: temperature=0.7, max_tokens=10000. max_tokens is
     // routed to max_completion_tokens at the wire for reasoning models.
     // ------------------------------------------------------------------
     const effectiveTemperature =

@@ -129,7 +129,7 @@ describe("orcarouter_chat", () => {
   });
 
   // ---------------------------------------------------------------------
-  // defaults: temperature 0.7, max_tokens 2000
+  // defaults: temperature 0.7, max_tokens 10000
   // ---------------------------------------------------------------------
 
   it("default temperature 0.7 when omitted", async () => {
@@ -139,11 +139,11 @@ describe("orcarouter_chat", () => {
     expect(c.body.temperature).toBe(0.7);
   });
 
-  it("default max_tokens 2000 when omitted", async () => {
+  it("default max_tokens 10000 when omitted", async () => {
     const c = captureBody();
     const client = new ApiClient({ apiKey: "k", baseUrl: BASE });
     await chatTool.handler({ model: "x", prompt: "hi" }, { client });
-    expect(c.body.max_tokens).toBe(2000);
+    expect(c.body.max_tokens).toBe(10000);
   });
 
   it("explicit max_tokens forwarded", async () => {
@@ -210,7 +210,7 @@ describe("orcarouter_chat", () => {
       { model: "openai/gpt-5", prompt: "hi" },
       { client },
     );
-    expect(c.body.max_completion_tokens).toBe(2000);
+    expect(c.body.max_completion_tokens).toBe(10000);
     expect("max_tokens" in c.body).toBe(false);
   });
 
@@ -232,7 +232,7 @@ describe("orcarouter_chat", () => {
       { model: "openai/o3-pro", prompt: "hi" },
       { client },
     );
-    expect(c.body.max_completion_tokens).toBe(2000);
+    expect(c.body.max_completion_tokens).toBe(10000);
     expect("max_tokens" in c.body).toBe(false);
   });
 
@@ -243,7 +243,7 @@ describe("orcarouter_chat", () => {
       { model: "openai/o4", prompt: "hi" },
       { client },
     );
-    expect(c.body.max_completion_tokens).toBe(2000);
+    expect(c.body.max_completion_tokens).toBe(10000);
     expect("max_tokens" in c.body).toBe(false);
   });
 
@@ -254,7 +254,7 @@ describe("orcarouter_chat", () => {
       { model: "openai/gpt-4o-mini", prompt: "hi" },
       { client },
     );
-    expect(c.body.max_tokens).toBe(2000);
+    expect(c.body.max_tokens).toBe(10000);
     expect("max_completion_tokens" in c.body).toBe(false);
   });
 
@@ -265,7 +265,7 @@ describe("orcarouter_chat", () => {
       { model: "anthropic/claude-haiku-4.5", prompt: "hi" },
       { client },
     );
-    expect(c.body.max_tokens).toBe(2000);
+    expect(c.body.max_tokens).toBe(10000);
     expect("max_completion_tokens" in c.body).toBe(false);
   });
 
@@ -274,7 +274,7 @@ describe("orcarouter_chat", () => {
     const client = new ApiClient({ apiKey: "k", baseUrl: BASE });
     await chatTool.handler({ prompt: "hi" }, { client });
     expect(c.body.model).toBe("orcarouter/auto");
-    expect(c.body.max_tokens).toBe(2000);
+    expect(c.body.max_tokens).toBe(10000);
     expect("max_completion_tokens" in c.body).toBe(false);
   });
 
@@ -283,7 +283,7 @@ describe("orcarouter_chat", () => {
     const client = new ApiClient({ apiKey: "k", baseUrl: BASE });
     await chatTool.handler({ model: "gpt-5", prompt: "hi" }, { client });
     expect(c.body.model).toBe("gpt-5");
-    expect(c.body.max_completion_tokens).toBe(2000);
+    expect(c.body.max_completion_tokens).toBe(10000);
     expect("max_tokens" in c.body).toBe(false);
   });
 
@@ -469,7 +469,7 @@ describe("orcarouter_chat", () => {
       { default?: unknown }
     >;
     expect(props.model.default).toBe("orcarouter/auto");
-    expect(props.max_tokens.default).toBe(2000);
+    expect(props.max_tokens.default).toBe(10000);
     expect(props.temperature.default).toBe(0.7);
   });
 

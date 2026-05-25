@@ -1,0 +1,98 @@
+name: Publish to npm and MCP Registry
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write   # required for GitHub OIDC → MCP Registry
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "lts/*"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate tag matches package.json and server.json
+        run: |
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          SRV_VERSION=$(jq -r '.version' server.json)
+          SRV_PKG_VERSION=$(jq -r '.packages[0].version' server.json)
+          MCP_NAME_PKG=$(node -p "require('./package.json').mcpName")
+          MCP_NAME_SRV=$(jq -r '.name' server.json)
+
+          fail=0
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag v$TAG_VERSION != package.json version $PKG_VERSION"; fail=1
+          fi
+          if [ "$TAG_VERSION" != "$SRV_VERSION" ]; then
+            echo "::error::Tag v$TAG_VERSION != server.json version $SRV_VERSION"; fail=1
+          fi
+          if [ "$TAG_VERSION" != "$SRV_PKG_VERSION" ]; then
+            echo "::error::Tag v$TAG_VERSION != server.json packages[0].version $SRV_PKG_VERSION"; fail=1
+          fi
+          if [ "$MCP_NAME_PKG" != "$MCP_NAME_SRV" ]; then
+            echo "::error::package.json mcpName ($MCP_NAME_PKG) != server.json name ($MCP_NAME_SRV)"; fail=1
+          fi
+          if [ "$fail" -ne 0 ]; then exit "$fail"; fi
+
+          # Export the validated version so later steps (publish idempotency
+          # checks, version-pinned mcp-publisher inputs, etc.) can read it.
+          echo "VERSION=$TAG_VERSION" >> "$GITHUB_ENV"
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # Idempotent publish: skip if the exact version is already on npm so that
+      # a partial failure later in this job (e.g. transient mcp-publisher
+      # error) can be recovered by a plain "Re-run failed jobs" without
+      # tripping over npm's "version already exists" rejection.
+      - name: Publish to npm (idempotent)
+        run: |
+          if npm view "@orcarouter/mcp@${VERSION}" version >/dev/null 2>&1; then
+            echo "@orcarouter/mcp@${VERSION} already on npm — skipping publish"
+          else
+            npm publish --access public
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Install mcp-publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" \
+            | tar xz mcp-publisher
+          ./mcp-publisher --help | head -1
+
+      - name: Authenticate to MCP Registry (GitHub OIDC)
+        run: ./mcp-publisher login github-oidc
+
+      # Idempotent publish: skip if this exact version is already in the
+      # registry, for the same rerun-safety reason as the npm step above.
+      - name: Publish to MCP Registry (idempotent)
+        run: |
+          MCP_NAME=$(jq -r '.name' server.json)
+          EXISTING=$(curl -sf "https://registry.modelcontextprotocol.io/v0/servers?search=${MCP_NAME}" \
+            | jq -r --arg n "$MCP_NAME" --arg v "$VERSION" \
+                '.servers[]?.server | select(.name == $n and .version == $v) | .name')
+          if [ -n "$EXISTING" ]; then
+            echo "${MCP_NAME}@${VERSION} already in MCP Registry — skipping publish"
+          else
+            ./mcp-publisher publish
+          fi

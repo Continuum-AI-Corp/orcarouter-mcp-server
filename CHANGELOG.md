@@ -4,6 +4,24 @@ All notable changes to `@orcarouter/mcp` follow the
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and this
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.1.3
+
+### Changed
+
+- **Default `max_tokens` for `orcarouter_chat` raised from 2000 to 10000.**
+  The previous 2000-token cap was conservative and truncated typical
+  long-form completions (code generation, multi-paragraph summaries).
+  Callers who explicitly set `max_tokens` are unaffected. Reasoning
+  models still receive the value via `max_completion_tokens` at the
+  wire as before.
+
+### Added
+
+- **`mcpName` field in `package.json` and a `server.json` manifest** to
+  support publishing to the [MCP Registry](https://registry.modelcontextprotocol.io/).
+  Server name: `io.github.Continuum-AI-Corp/orcarouter-mcp`. No runtime
+  behavior change — registry-discovery metadata only.
+
 ## v1.1.2
 
 ### Changed

@@ -74,6 +74,8 @@ claude mcp add orcarouter -s user \
 2. 将复制文件中的 `sk-or-...` 替换为你的 [OrcaRouter API key](https://www.orcarouter.ai/console)。
 3. 重启你的 MCP 客户端。
 
+根目录的 [`.mcp.json`](.mcp.json) 是符合 [Open Plugins](https://open-plugins.com) 标准位置的同一份配置，让扫描该文件的注册/发现工具（如 [cursor.directory](https://cursor.directory)）能自动识别本 server。
+
 需要 Node.js 18 或更高版本。`ORCAROUTER_API_KEY` 环境变量仅在使用
 `orcarouter_chat` 时必填；目录类工具无需 API key 即可使用。
 

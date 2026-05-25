@@ -74,6 +74,8 @@ claude mcp add orcarouter -s user \
 2. コピーしたファイル内の `sk-or-...` をあなたの [OrcaRouter API key](https://www.orcarouter.ai/console) に置き換えます。
 3. MCP クライアントを再起動します。
 
+ルートの [`.mcp.json`](.mcp.json) は [Open Plugins](https://open-plugins.com) 標準の場所に置かれた同じ設定です。これにより、このファイルをスキャンするレジストリ/ディスカバリーツール（例: [cursor.directory](https://cursor.directory)）が本サーバーを自動的に検出できます。
+
 Node.js 18 以降が必要です。`ORCAROUTER_API_KEY` 環境変数は
 `orcarouter_chat` でのみ必要で、カタログ系ツールはこれなしで動作します。
 

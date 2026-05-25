@@ -72,6 +72,8 @@ claude mcp add orcarouter -s user \
 2. 복사한 파일에서 `sk-or-...`를 본인의 [OrcaRouter API key](https://www.orcarouter.ai/console)로 교체합니다.
 3. MCP 클라이언트를 재시작합니다.
 
+루트의 [`.mcp.json`](.mcp.json)은 [Open Plugins](https://open-plugins.com) 표준 위치에 있는 동일한 구성으로, 이 파일을 스캔하는 레지스트리/디스커버리 도구(예: [cursor.directory](https://cursor.directory))가 이 서버를 자동으로 인식할 수 있습니다.
+
 Node.js 18 이상이 필요합니다. `ORCAROUTER_API_KEY` 환경 변수는 `orcarouter_chat`에만 필요하며, 카탈로그 도구는 키 없이도 작동합니다.
 
 ## 도구

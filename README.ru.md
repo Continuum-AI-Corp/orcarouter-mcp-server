@@ -76,6 +76,8 @@ claude mcp add orcarouter -s user \
 2. Замените `sk-or-...` в скопированном файле на ваш [ключ OrcaRouter API](https://www.orcarouter.ai/console).
 3. Перезапустите MCP-клиент.
 
+Файл [`.mcp.json`](.mcp.json) в корне репозитория — та же конфигурация в стандартном расположении [Open Plugins](https://open-plugins.com), благодаря чему инструменты реестра/обнаружения, которые его сканируют (например, [cursor.directory](https://cursor.directory)), могут автоматически распознать этот сервер.
+
 Требуется Node.js 18 или новее. Переменная окружения `ORCAROUTER_API_KEY` нужна
 только для `orcarouter_chat`; инструменты каталога работают и без неё.
 

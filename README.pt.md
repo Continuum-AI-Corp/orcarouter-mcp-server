@@ -76,6 +76,8 @@ claude mcp add orcarouter -s user \
 2. Substitua `sk-or-...` no arquivo copiado pela sua [chave de API do OrcaRouter](https://www.orcarouter.ai/console).
 3. Reinicie o seu cliente MCP.
 
+O [`.mcp.json`](.mcp.json) na raiz é a mesma configuração no local padrão do [Open Plugins](https://open-plugins.com), de modo que ferramentas de registro/descoberta que o escaneiem (por exemplo, [cursor.directory](https://cursor.directory)) podem detectar este servidor automaticamente.
+
 Requer Node.js 18 ou superior. A variável de ambiente `ORCAROUTER_API_KEY` é
 necessária apenas para `orcarouter_chat`; as ferramentas de catálogo funcionam sem ela.
 

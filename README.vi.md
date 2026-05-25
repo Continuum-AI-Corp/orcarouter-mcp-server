@@ -76,6 +76,8 @@ claude mcp add orcarouter -s user \
 2. Thay `sk-or-...` trong file đã sao chép bằng [API key OrcaRouter](https://www.orcarouter.ai/console) của bạn.
 3. Khởi động lại client MCP của bạn.
 
+File [`.mcp.json`](.mcp.json) ở thư mục gốc là cùng cấu hình tại vị trí chuẩn của [Open Plugins](https://open-plugins.com), giúp các công cụ registry/khám phá quét nó (ví dụ [cursor.directory](https://cursor.directory)) có thể tự động nhận diện server này.
+
 Yêu cầu Node.js 18 trở lên. Biến môi trường `ORCAROUTER_API_KEY` chỉ
 bắt buộc cho `orcarouter_chat`; các công cụ danh mục hoạt động mà không cần nó.
 

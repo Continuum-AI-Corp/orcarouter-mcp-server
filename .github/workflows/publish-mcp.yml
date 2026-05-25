@@ -56,8 +56,17 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Publish to npm
-        run: npm publish --access public
+      # Idempotent publish: skip if the exact version is already on npm so that
+      # a partial failure later in this job (e.g. transient mcp-publisher
+      # error) can be recovered by a plain "Re-run failed jobs" without
+      # tripping over npm's "version already exists" rejection.
+      - name: Publish to npm (idempotent)
+        run: |
+          if npm view "@orcarouter/mcp@${VERSION}" version >/dev/null 2>&1; then
+            echo "@orcarouter/mcp@${VERSION} already on npm — skipping publish"
+          else
+            npm publish --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -70,5 +79,16 @@ jobs:
       - name: Authenticate to MCP Registry (GitHub OIDC)
         run: ./mcp-publisher login github-oidc
 
-      - name: Publish to MCP Registry
-        run: ./mcp-publisher publish
+      # Idempotent publish: skip if this exact version is already in the
+      # registry, for the same rerun-safety reason as the npm step above.
+      - name: Publish to MCP Registry (idempotent)
+        run: |
+          MCP_NAME=$(jq -r '.name' server.json)
+          EXISTING=$(curl -sf "https://registry.modelcontextprotocol.io/v0/servers?search=${MCP_NAME}" \
+            | jq -r --arg n "$MCP_NAME" --arg v "$VERSION" \
+                '.servers[]?.server | select(.name == $n and .version == $v) | .name')
+          if [ -n "$EXISTING" ]; then
+            echo "${MCP_NAME}@${VERSION} already in MCP Registry — skipping publish"
+          else
+            ./mcp-publisher publish
+          fi

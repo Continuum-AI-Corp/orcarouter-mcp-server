@@ -45,7 +45,11 @@ jobs:
           if [ "$MCP_NAME_PKG" != "$MCP_NAME_SRV" ]; then
             echo "::error::package.json mcpName ($MCP_NAME_PKG) != server.json name ($MCP_NAME_SRV)"; fail=1
           fi
-          exit $fail
+          if [ "$fail" -ne 0 ]; then exit "$fail"; fi
+
+          # Export the validated version so later steps (publish idempotency
+          # checks, version-pinned mcp-publisher inputs, etc.) can read it.
+          echo "VERSION=$TAG_VERSION" >> "$GITHUB_ENV"
 
       - name: Typecheck
         run: npm run typecheck

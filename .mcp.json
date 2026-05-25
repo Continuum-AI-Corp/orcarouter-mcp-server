@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "orcarouter": {
+      "command": "npx",
+      "args": ["-y", "@orcarouter/mcp"],
+      "env": {
+        "ORCAROUTER_API_KEY": "sk-or-..."
+      }
+    }
+  }
+}

@@ -120,6 +120,10 @@ npm run build
 ビルドにより `dist/index.js` に `#!/usr/bin/env node` shebang 付きの
 ESM バンドルが生成され、`orcarouter-mcp` バイナリとして実行できます。
 
+## コントリビューション
+
+[CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。初心者向けタスクは [`good first issue`](https://github.com/Continuum-AI-Corp/orcarouter-mcp-server/labels/good%20first%20issue) ラベルをご覧ください。
+
 ## ライセンス
 
 [MIT](LICENSE)

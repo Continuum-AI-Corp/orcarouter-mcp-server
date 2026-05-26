@@ -115,6 +115,10 @@ npm run build
 
 빌드는 `#!/usr/bin/env node` 셔뱅이 포함된 ESM 번들을 `dist/index.js`에 생성하며, `orcarouter-mcp` 바이너리로 실행할 수 있습니다.
 
+## 기여하기
+
+[CONTRIBUTING.md](CONTRIBUTING.md)를 참고하세요. 입문자 친화적인 작업은 [`good first issue`](https://github.com/Continuum-AI-Corp/orcarouter-mcp-server/labels/good%20first%20issue) 레이블을 살펴보세요.
+
 ## 라이선스
 
 [MIT](LICENSE)

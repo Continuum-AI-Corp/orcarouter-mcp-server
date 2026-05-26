@@ -115,6 +115,10 @@ npm run build
 
 Der Build erzeugt ein ESM-Bundle unter `dist/index.js` mit einem `#!/usr/bin/env node`-Shebang, ausführbar als `orcarouter-mcp`-Binary.
 
+## Mitwirken
+
+Siehe [CONTRIBUTING.md](CONTRIBUTING.md). Für einsteigerfreundliche Aufgaben durchsuche das [`good first issue`](https://github.com/Continuum-AI-Corp/orcarouter-mcp-server/labels/good%20first%20issue)-Label.
+
 ## Lizenz
 
 [MIT](LICENSE)

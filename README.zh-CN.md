@@ -119,6 +119,10 @@ npm run build
 构建会在 `dist/index.js` 产出一个带 `#!/usr/bin/env node` shebang 的 ESM bundle,
 可作为 `orcarouter-mcp` 二进制运行。
 
+## 贡献
+
+请参阅 [CONTRIBUTING.md](CONTRIBUTING.md)。新手友好的任务可以浏览 [`good first issue`](https://github.com/Continuum-AI-Corp/orcarouter-mcp-server/labels/good%20first%20issue) 标签。
+
 ## 许可证
 
 [MIT](LICENSE)

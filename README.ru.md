@@ -123,6 +123,10 @@ npm run build
 Сборка создаёт ESM-бандл в `dist/index.js` с shebang
 `#!/usr/bin/env node`, который запускается как бинарь `orcarouter-mcp`.
 
+## Участие в разработке
+
+См. [CONTRIBUTING.md](CONTRIBUTING.md). Для задач, дружелюбных к новичкам, см. метку [`good first issue`](https://github.com/Continuum-AI-Corp/orcarouter-mcp-server/labels/good%20first%20issue).
+
 ## Лицензия
 
 [MIT](LICENSE)

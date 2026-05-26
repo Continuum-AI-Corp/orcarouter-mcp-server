@@ -123,6 +123,10 @@ npm run build
 Quá trình build tạo ra một ESM bundle tại `dist/index.js` với shebang
 `#!/usr/bin/env node`, có thể chạy như binary `orcarouter-mcp`.
 
+## Đóng góp
+
+Xem [CONTRIBUTING.md](CONTRIBUTING.md). Đối với các tác vụ thân thiện với người mới, hãy duyệt nhãn [`good first issue`](https://github.com/Continuum-AI-Corp/orcarouter-mcp-server/labels/good%20first%20issue).
+
 ## Giấy phép
 
 [MIT](LICENSE)

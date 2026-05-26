@@ -5,7 +5,7 @@ on:
     tags: ["v*"]
 
 permissions:
-  contents: read
+  contents: write   # required to create the GitHub Release with the .mcpb asset
   id-token: write   # required for GitHub OIDC → MCP Registry
 
 jobs:
@@ -28,12 +28,13 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Validate tag matches package.json and server.json
+      - name: Validate tag matches package.json, server.json, and manifest.json
         run: |
           TAG_VERSION=${GITHUB_REF#refs/tags/v}
           PKG_VERSION=$(node -p "require('./package.json').version")
           SRV_VERSION=$(jq -r '.version' server.json)
           SRV_PKG_VERSION=$(jq -r '.packages[0].version' server.json)
+          MAN_VERSION=$(jq -r '.version' manifest.json)
           MCP_NAME_PKG=$(node -p "require('./package.json').mcpName")
           MCP_NAME_SRV=$(jq -r '.name' server.json)
 
@@ -46,6 +47,9 @@ jobs:
           fi
           if [ "$TAG_VERSION" != "$SRV_PKG_VERSION" ]; then
             echo "::error::Tag v$TAG_VERSION != server.json packages[0].version $SRV_PKG_VERSION"; fail=1
+          fi
+          if [ "$TAG_VERSION" != "$MAN_VERSION" ]; then
+            echo "::error::Tag v$TAG_VERSION != manifest.json version $MAN_VERSION"; fail=1
           fi
           if [ "$MCP_NAME_PKG" != "$MCP_NAME_SRV" ]; then
             echo "::error::package.json mcpName ($MCP_NAME_PKG) != server.json name ($MCP_NAME_SRV)"; fail=1
@@ -100,4 +104,28 @@ jobs:
             echo "${MCP_NAME}@${VERSION} already in MCP Registry — skipping publish"
           else
             ./mcp-publisher publish
+          fi
+
+      # Build an MCP Bundle (.mcpb) for Claude Desktop / Anthropic Directory.
+      # The bundle is a zip of dist/ + production node_modules/ + manifest.json
+      # + LICENSE + icon. See scripts/build-mcpb.sh for the staging pipeline.
+      - name: Build MCPB bundle
+        run: bash scripts/build-mcpb.sh
+
+      # Attach the .mcpb to a GitHub Release so a human can grab it and submit
+      # to https://clau.de/desktop-extention-submission. Anthropic does not
+      # expose an automated Directory submission API yet, so this is as far as
+      # CI can take us.
+      - name: Create GitHub Release with MCPB asset (idempotent)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          MCPB="orcarouter-mcp-${VERSION}.mcpb"
+          if gh release view "v${VERSION}" >/dev/null 2>&1; then
+            echo "Release v${VERSION} already exists — uploading/replacing asset only"
+            gh release upload "v${VERSION}" "${MCPB}" --clobber
+          else
+            gh release create "v${VERSION}" "${MCPB}" \
+              --title "v${VERSION}" \
+              --generate-notes
           fi

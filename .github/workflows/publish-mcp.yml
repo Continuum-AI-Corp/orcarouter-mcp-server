@@ -28,12 +28,13 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Validate tag matches package.json and server.json
+      - name: Validate tag matches package.json, server.json, and manifest.json
         run: |
           TAG_VERSION=${GITHUB_REF#refs/tags/v}
           PKG_VERSION=$(node -p "require('./package.json').version")
           SRV_VERSION=$(jq -r '.version' server.json)
           SRV_PKG_VERSION=$(jq -r '.packages[0].version' server.json)
+          MAN_VERSION=$(jq -r '.version' manifest.json)
           MCP_NAME_PKG=$(node -p "require('./package.json').mcpName")
           MCP_NAME_SRV=$(jq -r '.name' server.json)
 
@@ -46,6 +47,9 @@ jobs:
           fi
           if [ "$TAG_VERSION" != "$SRV_PKG_VERSION" ]; then
             echo "::error::Tag v$TAG_VERSION != server.json packages[0].version $SRV_PKG_VERSION"; fail=1
+          fi
+          if [ "$TAG_VERSION" != "$MAN_VERSION" ]; then
+            echo "::error::Tag v$TAG_VERSION != manifest.json version $MAN_VERSION"; fail=1
           fi
           if [ "$MCP_NAME_PKG" != "$MCP_NAME_SRV" ]; then
             echo "::error::package.json mcpName ($MCP_NAME_PKG) != server.json name ($MCP_NAME_SRV)"; fail=1

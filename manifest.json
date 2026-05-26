@@ -1,0 +1,51 @@
+{
+  "manifest_version": "0.3",
+  "name": "orcarouter-mcp",
+  "display_name": "OrcaRouter",
+  "version": "1.1.4",
+  "description": "Browse 160+ LLM models with live pricing — no API key needed for catalog. Route chat completions through OrcaRouter with automatic fallback.",
+  "long_description": "OrcaRouter MCP exposes the OrcaRouter LLM gateway (OpenAI-compatible, 160+ models from OpenAI, Anthropic, Google, Qwen, DeepSeek, etc.) as 4 MCP tools.\n\n**Catalog tools** (no API key required):\n- `orcarouter_models_list` — browse models with live pricing, context window, capabilities\n- `orcarouter_model_card` — per-model detail (pricing, latency, modalities, endpoints)\n- `orcarouter_providers_list` — list providers and model counts\n\n**Chat** (API key required):\n- `orcarouter_chat` — single-turn chat with optional fallback chain (up to 5 models, automatic retry on failure)\n\nFor OpenAI reasoning models (gpt-5/o1/o3/...), `max_tokens` is automatically routed to `max_completion_tokens` at the wire level. The MCP server speaks the standard 2025-06-18 protocol revision over stdio.",
+  "author": {
+    "name": "Continuum AI Corp",
+    "url": "https://www.orcarouter.ai"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Continuum-AI-Corp/orcarouter-mcp-server.git"
+  },
+  "homepage": "https://www.orcarouter.ai",
+  "documentation": "https://github.com/Continuum-AI-Corp/orcarouter-mcp-server#readme",
+  "support": "https://github.com/Continuum-AI-Corp/orcarouter-mcp-server/issues",
+  "icon": "assets/logo.png",
+  "license": "MIT",
+  "keywords": ["mcp", "llm", "openai", "anthropic", "router", "gateway", "model-context-protocol"],
+  "privacy_policies": ["https://www.orcarouter.ai/privacy.html"],
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.js"],
+      "env": {
+        "ORCAROUTER_API_KEY": "${user_config.api_key}"
+      }
+    }
+  },
+  "user_config": {
+    "api_key": {
+      "type": "string",
+      "title": "OrcaRouter API Key",
+      "description": "Optional. Catalog tools (models_list, model_card, providers_list) work without a key. Required only for orcarouter_chat. Get one at https://www.orcarouter.ai/console",
+      "sensitive": true,
+      "required": false
+    }
+  },
+  "tools_generated": true,
+  "compatibility": {
+    "claude_desktop": ">=1.0.0",
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "node": ">=18.0.0"
+    }
+  }
+}

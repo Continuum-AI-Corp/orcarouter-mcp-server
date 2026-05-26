@@ -26,10 +26,22 @@ function errorResult(text: string): McpToolResult {
 export const providersListTool: ToolDefinition<ProvidersListInput> = {
   name: "orcarouter_providers_list",
   description:
-    "List all model providers on OrcaRouter with their model counts and " +
-    "display metadata. Works without an API key. Useful for discovering " +
-    "provider ids (e.g. 'openai', 'anthropic') to pass to " +
-    "orcarouter_models_list as the `provider` filter.",
+    "List all model providers on OrcaRouter with their `provider_id`, " +
+    "human-readable `display_name`, `icon_url`, and `model_count`. Call this " +
+    "first to discover valid provider ids (e.g. 'openai', 'anthropic', " +
+    "'google', 'qwen', 'deepseek') which you can then pass to " +
+    "orcarouter_models_list as the `provider` filter. Takes no parameters and " +
+    "returns the same list on every call until the deployment's catalog " +
+    "changes. Read-only, no API key required.",
+  annotations: {
+    title: "List OrcaRouter Providers",
+    // Zero-arg read against the public catalog endpoint. Same response each
+    // call (idempotent), contacts the OrcaRouter API (open world).
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
   inputSchema: {
     type: "object",
     properties: {},

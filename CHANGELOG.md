@@ -4,6 +4,32 @@ All notable changes to `@orcarouter/mcp` follow the
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and this
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.1.4
+
+### Added
+
+- **MCP `annotations` on every tool** (`readOnlyHint`, `destructiveHint`,
+  `idempotentHint`, `openWorldHint`, `title`). MCP clients can now reason
+  about each tool before they call it — e.g. render a "read-only, safe to
+  call" badge on the three catalog tools, or route the chat tool through
+  an approval workflow. Lifts Glama's `Tool Definition Quality → Behavior`
+  dimension across all four tools.
+
+### Changed
+
+- **Tool descriptions tightened** for the dimensions where Glama's TDQS
+  reviewer flagged gaps:
+  - `orcarouter_chat`: explains the `models` fallback chain interaction
+    with the primary `model`, the error surface (`isError:true` text),
+    and that ORCAROUTER_API_KEY is required.
+  - `orcarouter_model_card`: explains when to use it vs.
+    `orcarouter_models_list`, and that errors return `isError:true`.
+  - `orcarouter_models_list`: enumerates the returned fields and notes
+    that filters compose (all conditions must match).
+  - `orcarouter_providers_list`: enumerates the returned fields and
+    states the call pattern (zero-arg, idempotent).
+- No behavior change — the wire-level response shapes are unchanged.
+
 ## v1.1.3
 
 ### Changed

@@ -77,11 +77,26 @@ function stringifyContent(content: unknown): string {
 export const chatTool: ToolDefinition<ChatInput> = {
   name: "orcarouter_chat",
   description:
-    "Send a single-turn chat request to OrcaRouter. Default model is the " +
-    "workspace's auto-router. Use `orcarouter/<name>` for other routers or " +
-    "`<provider>/<model>` for direct calls. For OpenAI reasoning models " +
-    "(gpt-5/o1/o3/...), max_tokens is automatically routed to " +
-    "max_completion_tokens at the wire level.",
+    "Send a single-turn chat request to OrcaRouter and return the assistant's " +
+    "response text. Default model is the workspace's auto-router. Use " +
+    "`orcarouter/<name>` for other routers or `<provider>/<model>` for direct " +
+    "calls. For OpenAI reasoning models (gpt-5/o1/o3/...), max_tokens is " +
+    "automatically routed to max_completion_tokens at the wire level. The " +
+    "optional `models` array sets a fallback chain — the primary `model` is " +
+    "tried first, then each entry on failure (5 entries total max, including " +
+    "the primary). Errors are returned as text content with isError:true; " +
+    "common cases include missing API key, rate limits, and upstream provider " +
+    "outages. Requires ORCAROUTER_API_KEY.",
+  annotations: {
+    title: "OrcaRouter Chat",
+    // Calls an external LLM, so not read-only and contacts an open world.
+    // Not destructive (no state mutation on our side or the provider's), but
+    // not idempotent either: the same prompt produces a different completion.
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: true,
+  },
   inputSchema: {
     type: "object",
     properties: {

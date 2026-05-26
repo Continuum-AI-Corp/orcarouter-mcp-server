@@ -63,7 +63,23 @@ function errorResult(text: string): McpToolResult {
 export const modelCardTool: ToolDefinition<ModelCardInput> = {
   name: "orcarouter_model_card",
   description:
-    "Get detailed information about a single model: pricing, context window, supported endpoints, latency.",
+    "Get detailed information about a single model — display name, long " +
+    "description, pricing (per-call and per-million tokens), context window, " +
+    "max output, modalities (input/output), supported endpoints, latency " +
+    "percentiles (p50/p95), and release date. Use this when you already know " +
+    "the model id and want full details; for browsing or filtering across " +
+    "many models use orcarouter_models_list instead. Returns isError:true " +
+    "with a clear hint when the id is not found. Read-only, no API key " +
+    "required.",
+  annotations: {
+    title: "OrcaRouter Model Card",
+    // Single-model lookup against the public catalog. Read-only, deterministic
+    // for a given id, contacts the OrcaRouter API (open world), no mutation.
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
   inputSchema: {
     type: "object",
     properties: {

@@ -4,6 +4,27 @@ All notable changes to `@orcarouter/mcp` follow the
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and this
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.1.5
+
+### Changed
+
+- **MCPB `manifest.json` now lists tools statically.** Added a `tools` array
+  enumerating the four MCP tools (`orcarouter_chat`, `orcarouter_models_list`,
+  `orcarouter_model_card`, `orcarouter_providers_list`) with their names and
+  descriptions. Flipped `tools_generated` from `true` to `false` since we
+  don't add tools at runtime — the four are exhaustive.
+
+  Directory sites that read `manifest.json` (Smithery, Anthropic Connectors
+  Directory) couldn't list our capabilities before because they only saw
+  `tools_generated: true` with no static `tools[]` — they have no way to
+  run a stdio server to introspect. Smithery's API tab was showing
+  "No capabilities found"; this lands the static list directory crawlers
+  need.
+
+  No wire-level change. Runtime tool discovery via the MCP `tools/list`
+  method is unchanged — that's what MCP clients (Claude Desktop, Cursor,
+  Windsurf, …) still use at connect time.
+
 ## v1.1.4
 
 ### Added

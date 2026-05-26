@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "orcarouter-mcp",
   "display_name": "OrcaRouter",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "Browse 160+ LLM models with live pricing — no API key needed for catalog. Route chat completions through OrcaRouter with automatic fallback.",
   "long_description": "OrcaRouter MCP exposes the OrcaRouter LLM gateway (OpenAI-compatible, 160+ models from OpenAI, Anthropic, Google, Qwen, DeepSeek, etc.) as 4 MCP tools.\n\n**Catalog tools** (no API key required):\n- `orcarouter_models_list` — browse models with live pricing, context window, capabilities\n- `orcarouter_model_card` — per-model detail (pricing, latency, modalities, endpoints)\n- `orcarouter_providers_list` — list providers and model counts\n\n**Chat** (API key required):\n- `orcarouter_chat` — single-turn chat with optional fallback chain (up to 5 models, automatic retry on failure)\n\nFor OpenAI reasoning models (gpt-5/o1/o3/...), `max_tokens` is automatically routed to `max_completion_tokens` at the wire level. The MCP server speaks the standard 2025-06-18 protocol revision over stdio.",
   "author": {
@@ -40,7 +40,25 @@
       "required": false
     }
   },
-  "tools_generated": true,
+  "tools": [
+    {
+      "name": "orcarouter_models_list",
+      "description": "List 160+ LLM models with live pricing, context window, and capabilities. Filter by provider, capability, or minimum context. No API key required."
+    },
+    {
+      "name": "orcarouter_model_card",
+      "description": "Detailed info for one model: pricing, max output, modalities, supported endpoints, latency p50/p95. No API key required."
+    },
+    {
+      "name": "orcarouter_providers_list",
+      "description": "List providers with model counts. No API key required."
+    },
+    {
+      "name": "orcarouter_chat",
+      "description": "Single-turn chat with optional fallback chain (up to 5 models, automatic retry on failure). For OpenAI reasoning models (gpt-5/o1/o3), max_tokens auto-translates to max_completion_tokens. API key required."
+    }
+  ],
+  "tools_generated": false,
   "compatibility": {
     "claude_desktop": ">=1.0.0",
     "platforms": ["darwin", "win32", "linux"],

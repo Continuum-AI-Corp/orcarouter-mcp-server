@@ -1,6 +1,6 @@
 {
   "name": "@orcarouter/mcp",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "mcpName": "io.github.Continuum-AI-Corp/orcarouter-mcp",
   "description": "Official Model Context Protocol server for OrcaRouter — an OpenAI-compatible LLM API gateway.",
   "license": "MIT",

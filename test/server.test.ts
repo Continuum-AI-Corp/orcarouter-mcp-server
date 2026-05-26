@@ -60,6 +60,48 @@ describe("createOrcaRouterMcpServer", () => {
     await transport.close();
   });
 
+  it("tools/list response includes MCP annotations on every tool", async () => {
+    const { server: srv } = createOrcaRouterMcpServer({ apiKey: "k", baseUrl: BASE });
+    const transport = new MockTransport();
+    await srv.connect(transport);
+    const resp = await transport.send({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/list",
+      params: {},
+    });
+    interface AnnotatedTool {
+      name: string;
+      annotations?: {
+        title?: string;
+        readOnlyHint?: boolean;
+        destructiveHint?: boolean;
+        idempotentHint?: boolean;
+        openWorldHint?: boolean;
+      };
+    }
+    const tools = resp.result.tools as AnnotatedTool[];
+    // Every catalog tool is read-only + idempotent; chat alone is not.
+    const expected: Record<string, { readOnly: boolean; idempotent: boolean }> = {
+      orcarouter_chat: { readOnly: false, idempotent: false },
+      orcarouter_models_list: { readOnly: true, idempotent: true },
+      orcarouter_model_card: { readOnly: true, idempotent: true },
+      orcarouter_providers_list: { readOnly: true, idempotent: true },
+    };
+    for (const t of tools) {
+      const exp = expected[t.name];
+      expect(exp, `missing expected annotations for ${t.name}`).toBeDefined();
+      expect(t.annotations, `missing annotations on ${t.name}`).toBeDefined();
+      expect(t.annotations!.title, `missing title on ${t.name}`).toBeTruthy();
+      expect(t.annotations!.readOnlyHint).toBe(exp.readOnly);
+      expect(t.annotations!.destructiveHint).toBe(false);
+      expect(t.annotations!.idempotentHint).toBe(exp.idempotent);
+      // Every tool reaches an external service (OrcaRouter API or upstream LLM).
+      expect(t.annotations!.openWorldHint).toBe(true);
+    }
+    await transport.close();
+  });
+
   it("dispatches tools/call to the correct handler (model_card)", async () => {
     server.use(
       http.get(`${BASE}/api/public/models/openai/gpt-4o-mini`, () =>

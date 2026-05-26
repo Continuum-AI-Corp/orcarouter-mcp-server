@@ -42,8 +42,23 @@ interface ModelsListResponse {
 export const modelsListTool: ToolDefinition<ModelsListInput> = {
   name: "orcarouter_models_list",
   description:
-    "List available LLM models. Filter by provider, capability, or minimum " +
-    "context length — filters are applied server-side by the OrcaRouter backend.",
+    "List LLM models in the OrcaRouter catalog. Each entry includes id, name, " +
+    "description, owned_by, context_length, supported_endpoint_types, and " +
+    "pricing (both per-token and per-million tokens). Filter by `provider`, " +
+    "`capability`, or `min_context` — filters compose (all conditions must " +
+    "match) and are applied server-side. Discover valid provider ids first " +
+    "with orcarouter_providers_list. Returns the full catalog when called " +
+    "without filters. Read-only, no API key required.",
+  annotations: {
+    title: "Browse OrcaRouter Models",
+    // Read-only browse against the public catalog endpoint; same filters
+    // yield the same set on every call (idempotent). External call → open
+    // world, not destructive.
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
   inputSchema: {
     type: "object",
     properties: {

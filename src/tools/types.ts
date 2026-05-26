@@ -18,10 +18,23 @@ export interface JsonSchemaObject {
   [k: string]: unknown;
 }
 
+// Behavior hints declared on every tool (MCP spec 2025-06-18). These let
+// clients reason about a tool before they call it — e.g. show a "read-only,
+// safe to call without confirmation" badge, or route destructive operations
+// through an approval workflow. Strictly additive: the schema is untouched.
+export interface ToolAnnotations {
+  title?: string;
+  readOnlyHint?: boolean;
+  destructiveHint?: boolean;
+  idempotentHint?: boolean;
+  openWorldHint?: boolean;
+}
+
 export interface ToolDefinition<I = unknown> {
   name: string;
   description: string;
   inputSchema: JsonSchemaObject;
+  annotations?: ToolAnnotations;
   handler: (input: I, ctx: ToolContext) => Promise<McpToolResult>;
 }
 

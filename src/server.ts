@@ -90,6 +90,7 @@ export function createOrcaRouterMcpServer(opts: CreateServerOptions = {}): Built
         name: t.name,
         description: t.description,
         inputSchema: t.inputSchema,
+        ...(t.annotations ? { annotations: t.annotations } : {}),
       })),
     };
   });

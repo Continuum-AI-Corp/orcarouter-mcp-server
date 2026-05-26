@@ -20,8 +20,13 @@ jobs:
           node-version: "lts/*"
           registry-url: "https://registry.npmjs.org"
 
+      # Repo's primary lockfile is bun.lock (we use bun for local dev / tests),
+      # so `npm ci` rejects with "requires package-lock.json". `npm install`
+      # without a lockfile is fine here — we have a tag-gated release, deps
+      # are pinned to caret ranges in package.json that have been stable, and
+      # the build is bundled by tsup downstream. Same pattern as Dockerfile.
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Validate tag matches package.json and server.json
         run: |

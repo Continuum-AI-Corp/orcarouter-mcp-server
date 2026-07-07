@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/continuum-ai-corp-orcarouter-mcp-server-badge.png)](https://mseep.ai/app/continuum-ai-corp-orcarouter-mcp-server)
+
 <p align="center">
   <a href="https://www.orcarouter.ai">
     <img src="https://raw.githubusercontent.com/Continuum-AI-Corp/orcarouter-mcp-server/main/assets/logo.gif" alt="OrcaRouter" width="180" />

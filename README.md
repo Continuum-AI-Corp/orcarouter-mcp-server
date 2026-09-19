@@ -91,6 +91,75 @@ required for `orcarouter_chat`; catalog tools work without it.
 
 Full input schemas are exposed at runtime via the MCP `tools/list` method — your MCP client (Claude Desktop, Cursor, etc.) reads them automatically.
 
+## Remote / HTTP transport
+
+By default the server speaks MCP over **stdio**, which is what a client that
+launches it as a subprocess expects. Pass `--transport http` to serve the
+[Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)
+transport instead, for when you want to host one instance and point several
+clients at it.
+
+```sh
+# defaults: 127.0.0.1:3000, endpoint /mcp, sessions on
+npx -y @orcarouter/mcp --transport http
+
+# a hosted deployment behind a reverse proxy
+MCP_TRANSPORT=http \
+MCP_HTTP_AUTH_TOKEN=$(openssl rand -hex 32) \
+npx -y @orcarouter/mcp --host 0.0.0.0 --port 3000 \
+  --allowed-hosts mcp.example.com
+```
+
+Point a client at it with the `http` server type:
+
+```json
+{
+  "mcpServers": {
+    "orcarouter": {
+      "type": "http",
+      "url": "http://127.0.0.1:3000/mcp"
+    }
+  }
+}
+```
+
+| Flag | Environment | Default | Description |
+| --- | --- | --- | --- |
+| `--transport <stdio\|http>` | `MCP_TRANSPORT` | `stdio` | Transport to serve. |
+| `--port <n>` | `PORT` | `3000` | Port to listen on. |
+| `--host <addr>` | `HOST` | `127.0.0.1` | Interface to bind. |
+| `--path <path>` | `MCP_HTTP_PATH` | `/mcp` | Endpoint path. |
+| `--stateless` | `MCP_HTTP_STATELESS` | off | One server per request; no `Mcp-Session-Id`. |
+| `--allowed-hosts <a,b>` | `MCP_HTTP_ALLOWED_HOSTS` | bound host | `Host` header allowlist. |
+| `--allowed-origins <a,b>` | `MCP_HTTP_ALLOWED_ORIGINS` | bound host | `Origin` header allowlist. |
+| `--no-dns-rebinding-protection` | — | off | Skip `Host`/`Origin` validation. |
+| — | `MCP_HTTP_AUTH_TOKEN` | unset | Require this secret as `Authorization: Bearer` or `X-API-Key`. |
+
+`GET /healthz` answers without authentication and makes no call to the
+OrcaRouter API, so a liveness probe never spends your quota.
+
+**Stateful vs stateless.** The default issues an `Mcp-Session-Id` and keeps a
+session per client, which supports the `GET` SSE stream for server-initiated
+messages. `--stateless` builds a fresh server per request and returns no
+session id — every tool here is one round trip to a stateless API, so nothing
+is lost, and it lets several replicas sit behind a load balancer with no
+sticky routing.
+
+### Security for HTTP deployments
+
+The transport spec is explicit about what an HTTP MCP server owes its users,
+and the defaults here follow it:
+
+- **Binds to `127.0.0.1`**, not `0.0.0.0`. Exposing it is a deliberate act.
+- **Validates `Host` and `Origin`** on every request, rejecting anything not
+  on the allowlist with `403`. This is what stops a page in someone's browser
+  from driving a local MCP server through DNS rebinding. Name your public
+  hostname with `--allowed-hosts` when you put it behind a proxy.
+- **`MCP_HTTP_AUTH_TOKEN`** adds a shared-secret check. It is the small answer
+  for a server on a private network behind a proxy; the spec's full answer for
+  a public endpoint is OAuth 2.1, which this server does not implement — put
+  it behind something that does.
+
 ## Configuration
 
 | Name                        | Required | Description                                              |
@@ -98,12 +167,16 @@ Full input schemas are exposed at runtime via the MCP `tools/list` method — yo
 | `ORCAROUTER_API_KEY`        | optional | OrcaRouter API key. Required only for `orcarouter_chat`. |
 | `ORCAROUTER_BASE_URL`       | optional | API base URL. Defaults to `https://api.orcarouter.ai`.   |
 | `ORCAROUTER_REQUEST_TIMEOUT`| optional | Per-request HTTP timeout in **seconds**. Defaults to `300`. |
+| `MCP_TRANSPORT`             | optional | `stdio` (default) or `http`. See [Remote / HTTP transport](#remote--http-transport). |
 
 ## Security
 
 API keys are read from environment variables, never logged, and only
 sent to the OrcaRouter API. See [SECURITY.md](SECURITY.md) for the
 vulnerability disclosure policy.
+
+Running over HTTP adds a network surface; see
+[Security for HTTP deployments](#security-for-http-deployments).
 
 ## Development
 

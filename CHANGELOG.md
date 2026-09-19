@@ -4,6 +4,44 @@ All notable changes to `@orcarouter/mcp` follow the
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and this
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- **Streamable HTTP transport.** `--transport http` (or `MCP_TRANSPORT=http`)
+  serves the MCP
+  [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)
+  transport on a single endpoint handling `POST`, `GET` and `DELETE`, instead
+  of stdio. stdio remains the default, so existing client configs are
+  unaffected.
+
+  Previously the only entry point was stdio, which a reverse proxy cannot sit
+  in front of — anyone wanting to host one shared instance had to fork the
+  package or run a third-party stdio-to-HTTP bridge as a subprocess. Since
+  `createOrcaRouterMcpServer` was already exported and transport-agnostic,
+  this wires it to the SDK's own `StreamableHTTPServerTransport`.
+
+  Defaults follow the transport spec's security guidance: binds to
+  `127.0.0.1` rather than all interfaces, and validates the `Host` and
+  `Origin` headers on every request (`403` otherwise) to prevent DNS
+  rebinding. `--allowed-hosts` / `--allowed-origins` widen the allowlist for
+  a hosted deployment; `--no-dns-rebinding-protection` disables the check for
+  deployments where a trusted proxy already performs it.
+
+  Sessions are on by default (`Mcp-Session-Id`, with `DELETE` termination and
+  cleanup on close); `--stateless` builds one server per request for replicas
+  behind a load balancer.
+
+  `MCP_HTTP_AUTH_TOKEN` optionally requires a shared secret as
+  `Authorization: Bearer` or `X-API-Key`, compared in constant time. Unset
+  means no check, which is only appropriate on loopback. OAuth 2.1, the
+  spec's answer for public endpoints, is not implemented.
+
+  `GET /healthz` reports liveness without authentication and without calling
+  the OrcaRouter API, so probes do not consume quota.
+
+- `--help` output describing every flag and environment variable.
+
 ## v1.1.5
 
 ### Changed

@@ -11,6 +11,14 @@ client.
 | Claude Code     | [claude-code.json](claude-code.json)       | `~/.claude.json`                                                                                                                  | Merge under top-level `mcpServers` key (Claude Code stores other settings here too) |
 | Cursor          | [cursor.json](cursor.json)                 | `~/.cursor/mcp.json`                                                                                                              | Replace contents |
 | Windsurf        | [windsurf.json](windsurf.json)             | `~/.codeium/windsurf/mcp_config.json`                                                                                             | Replace contents |
+| Any HTTP client | [http.json](http.json)                     | your client's MCP config                                                                                                          | Use when the server is already running with `--transport http` |
+
+The `http.json` example assumes a server started separately with
+`npx -y @orcarouter/mcp --transport http`. Unlike the stdio examples the
+client does not launch the server, so `ORCAROUTER_API_KEY` belongs in the
+server's environment rather than the client config. If that server is
+reachable over a network, give it `MCP_HTTP_AUTH_TOKEN` and send the same
+value from the client as an `Authorization: Bearer` header.
 
 For Zed and other MCP clients, consult your client's documentation for
 the exact config schema and merge the `orcarouter` entry under whatever

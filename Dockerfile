@@ -21,4 +21,11 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 USER node
+
+# The same entry point serves either transport. For Streamable HTTP:
+#   docker run -e MCP_TRANSPORT=http -e HOST=0.0.0.0 -p 3000:3000 <image>
+# HOST must be set: the server binds 127.0.0.1 by default, which is
+# unreachable from outside the container.
+EXPOSE 3000
+
 ENTRYPOINT ["node", "/app/dist/index.js"]

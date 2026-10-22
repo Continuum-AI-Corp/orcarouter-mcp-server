@@ -16,6 +16,8 @@ import {
 import type { ToolDefinition, ToolContext } from "./tools/types.js";
 import { ValidationError } from "./tools/types.js";
 import { chatTool } from "./tools/chat.js";
+import { emailMessagesTool } from "./tools/email_messages.js";
+import { emailSendTool } from "./tools/email_send.js";
 import { modelCardTool } from "./tools/model_card.js";
 import { modelsListTool } from "./tools/models_list.js";
 import { providersListTool } from "./tools/providers_list.js";
@@ -25,6 +27,8 @@ const TOOLS: ToolDefinition<any>[] = [
   modelsListTool,
   modelCardTool,
   providersListTool,
+  emailSendTool,
+  emailMessagesTool,
 ];
 
 export function listToolNames(): string[] {

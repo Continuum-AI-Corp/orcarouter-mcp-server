@@ -80,8 +80,8 @@ claude mcp add orcarouter -s user \
 Il [`.mcp.json`](.mcp.json) nella radice è la stessa configurazione nella posizione standard di [Open Plugins](https://open-plugins.com), così gli strumenti di registry/scoperta che la scansionano (ad es. [cursor.directory](https://cursor.directory)) possono rilevare automaticamente questo server.
 
 Richiede Node.js 18 o successivo. La variabile d'ambiente `ORCAROUTER_API_KEY`
-è necessaria solo per `orcarouter_chat`; gli strumenti di catalogo funzionano
-senza di essa.
+è necessaria per `orcarouter_chat` e per gli strumenti email (che richiedono una
+chiave associata a un agente); gli strumenti di catalogo funzionano senza di essa.
 
 ## Strumenti
 
@@ -89,6 +89,8 @@ senza di essa.
 - `orcarouter_models_list` — esplora il catalogo (prezzi, contesto, capacità)
 - `orcarouter_model_card` — informazioni dettagliate su un singolo modello
 - `orcarouter_providers_list` — elenca i provider con il numero di modelli
+- `orcarouter_email_send` — invia un'email come il tuo agente OrcaRouter (idempotente con `client_ref`)
+- `orcarouter_email_messages` — elenca le email inviate e ricevute dall'agente (solo metadati)
 
 Gli schemi di input completi sono esposti a runtime tramite il metodo MCP `tools/list` — il tuo client MCP (Claude Desktop, Cursor, ecc.) li legge automaticamente.
 
@@ -96,7 +98,7 @@ Gli schemi di input completi sono esposti a runtime tramite il metodo MCP `tools
 
 | Nome                        | Obbligatorio | Descrizione                                              |
 | --------------------------- | ------------ | -------------------------------------------------------- |
-| `ORCAROUTER_API_KEY`        | opzionale    | Chiave API OrcaRouter. Necessaria solo per `orcarouter_chat`. |
+| `ORCAROUTER_API_KEY`        | opzionale    | Chiave API OrcaRouter. Necessaria per `orcarouter_chat` e per gli strumenti email; questi richiedono una chiave associata a un agente (Console → Agents → API access). |
 | `ORCAROUTER_BASE_URL`       | opzionale    | URL base dell'API. Predefinito `https://api.orcarouter.ai`. |
 | `ORCAROUTER_REQUEST_TIMEOUT`| opzionale    | Timeout HTTP per richiesta in **secondi**. Predefinito `300`. |
 

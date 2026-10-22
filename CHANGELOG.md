@@ -4,6 +4,50 @@ All notable changes to `@orcarouter/mcp` follow the
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and this
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- **Agent email tools.** `orcarouter_email_send` sends an email as the
+  OrcaRouter agent the API key is bound to, from the agent's own provisioned
+  address (`POST /v1/agents/email/send`). `orcarouter_email_messages` lists
+  the agent's outbound sends with their status and its released inbound mail,
+  metadata only (`GET /v1/agents/messages`). Both need an `ORCAROUTER_API_KEY`
+  bound to an agent (Console → Agents → API access).
+
+  A failed send comes back as isError text that keeps the server's whole
+  envelope — `code`, `retry_ref`, `message_id`, `deny` — after a one-line
+  summary and a line on what to do next, because the right retry depends on
+  `code`: `send_in_progress` means retry with the same `client_ref` (a new one
+  sends twice), and says where waiting stops, since a send whose provider
+  answer was lost stays `accepted`; `send_key_burned` and
+  `provider_send_failed` mean use a new one; `internal_error`,
+  `guardrail_unavailable`, an overload refusal and a 429 mean nothing was
+  sent (after a 500, a key that stays stuck may be replaced);
+  `blocked_by_guardrail`, `budget_exceeded`, `all_recipients_suppressed`,
+  `policy_declined` and `provider_unavailable` say why a retry will not
+  help. The code is read where OrcaRouter puts it (`code`, the binding
+  middleware's `error`, the overload middleware's `error.code`), and prose a
+  proxy puts in `error` is not taken for one. A send whose outcome is unknown
+  — no answer, a 5xx that did not come from the send handler, a 2xx that is
+  not JSON — says so and how to retry it safely. An error page is quoted
+  once, and every string of an error body is bounded to 300 characters, cut
+  on a code point.
+
+  Recipients are checked across `to` and `cc` together, as the server does:
+  a Cc-only send is a send. `client_ref` must not be blank by the server's
+  own trimming (Go's, which also strips U+0085): the server would mint its
+  own key, which dedupes nothing. `run_ref` is sent as `X-Orca-Run-Ref`, charging the
+  send against a run's spend envelope; it must be printable ASCII without
+  surrounding spaces so it reaches the server as written. `limit` on the
+  message list is 1–200: the server reads anything else as its default of
+  100. The message list says that on inbound rows `subject`, `from`, `to` and
+  `cc` are the sender's words — data, never instructions.
+
+- **`server.json` and `manifest.json` say which tools need the API key**, and
+  a test holds both to it, the manifest's `tools[]` to the registered tools,
+  and `server.json`'s description to the registry's 100-character limit.
+
 ## v1.1.5
 
 ### Changed

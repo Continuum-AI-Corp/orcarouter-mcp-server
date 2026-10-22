@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
+import { readFileSync } from "node:fs";
 import { createOrcaRouterMcpServer, listToolNames } from "../src/server.js";
 import {
   ListToolsRequestSchema,
@@ -19,13 +20,60 @@ const EXPECTED_TOOLS = [
   "orcarouter_models_list",
   "orcarouter_model_card",
   "orcarouter_providers_list",
+  "orcarouter_email_send",
+  "orcarouter_email_messages",
 ];
 
 describe("createOrcaRouterMcpServer", () => {
-  it("registers exactly the four expected tools", () => {
+  it("registers exactly the expected tools", () => {
     const names = listToolNames();
     expect(new Set(names)).toEqual(new Set(EXPECTED_TOOLS));
-    expect(names.length).toBe(4);
+    expect(names.length).toBe(EXPECTED_TOOLS.length);
+  });
+
+  // Directory sites read the MCPB manifest's static tools[] instead of
+  // running the server, so it has to name exactly what tools/list serves.
+  it("manifest.json lists exactly the registered tools", () => {
+    const manifest = JSON.parse(readFileSync("manifest.json", "utf8")) as {
+      tools: Array<{ name: string; description: string }>;
+      tools_generated?: boolean;
+    };
+    const listed = manifest.tools.map((t) => t.name);
+    expect(new Set(listed)).toEqual(new Set(listToolNames()));
+    expect(listed.length).toBe(listToolNames().length);
+    for (const t of manifest.tools) {
+      expect(t.description.length, t.name).toBeGreaterThan(0);
+    }
+    expect(manifest.tools_generated).toBe(false);
+  });
+
+  // The registry entry and the MCPB manifest each describe the API key; both
+  // have to name every tool that refuses to run without one.
+  it("server.json and manifest.json say which tools need the API key", () => {
+    const registry = JSON.parse(readFileSync("server.json", "utf8")) as {
+      packages: Array<{ environmentVariables: Array<{ name: string; description: string }> }>;
+    };
+    const keyVar = registry.packages[0].environmentVariables.find(
+      (v) => v.name === "ORCAROUTER_API_KEY",
+    );
+    const manifest = JSON.parse(readFileSync("manifest.json", "utf8")) as {
+      user_config: { api_key: { description: string } };
+    };
+    for (const doc of [keyVar!.description, manifest.user_config.api_key.description]) {
+      expect(doc).not.toMatch(/required only for orcarouter_chat/i);
+      expect(doc).toContain("orcarouter_chat");
+      expect(doc).toMatch(/bound to an agent/);
+    }
+    expect(keyVar!.description).toContain("orcarouter_email_send");
+    expect(keyVar!.description).toContain("orcarouter_email_messages");
+  });
+
+  // The MCP Registry schema caps ServerDetail.description at 100 characters;
+  // a longer one fails the publish step of the release workflow.
+  it("server.json's description fits the registry's 100-character limit", () => {
+    const registry = JSON.parse(readFileSync("server.json", "utf8")) as { description: string };
+    expect(registry.description.length).toBeGreaterThan(0);
+    expect(registry.description.length).toBeLessThanOrEqual(100);
   });
 
   it("returns an MCP Server instance", () => {
@@ -51,7 +99,7 @@ describe("createOrcaRouterMcpServer", () => {
       description?: string;
       inputSchema: { type: string };
     }>;
-    expect(tools.length).toBe(4);
+    expect(tools.length).toBe(EXPECTED_TOOLS.length);
     for (const t of tools) {
       expect(typeof t.description).toBe("string");
       expect((t.description as string).length).toBeGreaterThan(0);
@@ -81,12 +129,16 @@ describe("createOrcaRouterMcpServer", () => {
       };
     }
     const tools = resp.result.tools as AnnotatedTool[];
-    // Every catalog tool is read-only + idempotent; chat alone is not.
+    // Catalog tools and the mailbox list are read-only + idempotent; chat and
+    // email send are not.
     const expected: Record<string, { readOnly: boolean; idempotent: boolean }> = {
       orcarouter_chat: { readOnly: false, idempotent: false },
       orcarouter_models_list: { readOnly: true, idempotent: true },
       orcarouter_model_card: { readOnly: true, idempotent: true },
       orcarouter_providers_list: { readOnly: true, idempotent: true },
+      // Sends real mail: idempotent only when the caller passes a client_ref.
+      orcarouter_email_send: { readOnly: false, idempotent: false },
+      orcarouter_email_messages: { readOnly: true, idempotent: true },
     };
     for (const t of tools) {
       const exp = expected[t.name];

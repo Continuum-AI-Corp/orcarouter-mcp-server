@@ -1,5 +1,11 @@
 import { ApiError } from "../errors.js";
-import { textResult, ValidationError, type ToolDefinition, type McpToolResult } from "./types.js";
+import {
+  errorResult,
+  textResult,
+  ValidationError,
+  type ToolDefinition,
+  type McpToolResult,
+} from "./types.js";
 
 interface ModelCardInput {
   model: string;
@@ -54,10 +60,6 @@ interface ModelCardEnvelope {
   success?: boolean;
   message?: string;
   data?: PublicModelDTO;
-}
-
-function errorResult(text: string): McpToolResult {
-  return { isError: true, content: [{ type: "text", text }] };
 }
 
 export const modelCardTool: ToolDefinition<ModelCardInput> = {

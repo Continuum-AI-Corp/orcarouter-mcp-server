@@ -52,3 +52,7 @@ export class ValidationError extends Error {
 export function textResult(text: string): McpToolResult {
   return { content: [{ type: "text", text }] };
 }
+
+export function errorResult(text: string): McpToolResult {
+  return { isError: true, content: [{ type: "text", text }] };
+}

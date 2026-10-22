@@ -79,8 +79,8 @@ claude mcp add orcarouter -s user \
 
 रूट में स्थित [`.mcp.json`](.mcp.json) [Open Plugins](https://open-plugins.com) मानक स्थान पर वही कॉन्फ़िगरेशन है, जिससे इसे स्कैन करने वाले registry/discovery tools (जैसे [cursor.directory](https://cursor.directory)) इस server को स्वचालित रूप से पहचान सकें।
 
-Node.js 18 या उसके बाद का संस्करण आवश्यक है। `ORCAROUTER_API_KEY` env var केवल
-`orcarouter_chat` के लिए आवश्यक है; catalog tools इसके बिना काम करते हैं।
+Node.js 18 या उसके बाद का संस्करण आवश्यक है। `ORCAROUTER_API_KEY` env var
+`orcarouter_chat` और email tools के लिए आवश्यक है (email tools को किसी agent से bound key चाहिए); catalog tools इसके बिना काम करते हैं।
 
 ## Tools
 
@@ -88,6 +88,8 @@ Node.js 18 या उसके बाद का संस्करण आवश�
 - `orcarouter_models_list` — catalog ब्राउज़ करें (pricing, context, capabilities)
 - `orcarouter_model_card` — एक model के लिए विस्तृत जानकारी
 - `orcarouter_providers_list` — model counts के साथ providers की सूची
+- `orcarouter_email_send` — अपने OrcaRouter agent के रूप में email भेजें (`client_ref` के साथ idempotent)
+- `orcarouter_email_messages` — agent के भेजे और प्राप्त emails की सूची (केवल metadata)
 
 पूरे input schemas runtime पर MCP `tools/list` विधि के माध्यम से उपलब्ध हैं — आपका MCP client (Claude Desktop, Cursor, इत्यादि) उन्हें स्वतः पढ़ लेता है।
 
@@ -95,7 +97,7 @@ Node.js 18 या उसके बाद का संस्करण आवश�
 
 | Name                        | Required | Description                                              |
 | --------------------------- | -------- | -------------------------------------------------------- |
-| `ORCAROUTER_API_KEY`        | optional | OrcaRouter API key। केवल `orcarouter_chat` के लिए आवश्यक। |
+| `ORCAROUTER_API_KEY`        | optional | OrcaRouter API key। `orcarouter_chat` और email tools के लिए आवश्यक; email tools को किसी agent से bound key चाहिए (Console → Agents → API access)। |
 | `ORCAROUTER_BASE_URL`       | optional | API base URL। डिफ़ॉल्ट `https://api.orcarouter.ai`।   |
 | `ORCAROUTER_REQUEST_TIMEOUT`| optional | प्रति-अनुरोध HTTP timeout **सेकंड** में। डिफ़ॉल्ट `300`। |
 

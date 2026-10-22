@@ -4,7 +4,7 @@
   "display_name": "OrcaRouter",
   "version": "1.1.5",
   "description": "Browse 160+ LLM models with live pricing — no API key needed for catalog. Route chat completions through OrcaRouter with automatic fallback.",
-  "long_description": "OrcaRouter MCP exposes the OrcaRouter LLM gateway (OpenAI-compatible, 160+ models from OpenAI, Anthropic, Google, Qwen, DeepSeek, etc.) as 4 MCP tools.\n\n**Catalog tools** (no API key required):\n- `orcarouter_models_list` — browse models with live pricing, context window, capabilities\n- `orcarouter_model_card` — per-model detail (pricing, latency, modalities, endpoints)\n- `orcarouter_providers_list` — list providers and model counts\n\n**Chat** (API key required):\n- `orcarouter_chat` — single-turn chat with optional fallback chain (up to 5 models, automatic retry on failure)\n\nFor OpenAI reasoning models (gpt-5/o1/o3/...), `max_tokens` is automatically routed to `max_completion_tokens` at the wire level. The MCP server speaks the standard 2025-06-18 protocol revision over stdio.",
+  "long_description": "OrcaRouter MCP exposes the OrcaRouter LLM gateway (OpenAI-compatible, 160+ models from OpenAI, Anthropic, Google, Qwen, DeepSeek, etc.) as 6 MCP tools.\n\n**Catalog tools** (no API key required):\n- `orcarouter_models_list` — browse models with live pricing, context window, capabilities\n- `orcarouter_model_card` — per-model detail (pricing, latency, modalities, endpoints)\n- `orcarouter_providers_list` — list providers and model counts\n\n**Chat** (API key required):\n- `orcarouter_chat` — single-turn chat with optional fallback chain (up to 5 models, automatic retry on failure)\n\n**Agent email** (API key bound to an OrcaRouter agent required):\n- `orcarouter_email_send` — send an email as the agent, from its own provisioned address; idempotent with a `client_ref`\n- `orcarouter_email_messages` — list the agent's outbound sends with their status and its received mail (metadata only)\n\nFor OpenAI reasoning models (gpt-5/o1/o3/...), `max_tokens` is automatically routed to `max_completion_tokens` at the wire level. The MCP server speaks the standard 2025-06-18 protocol revision over stdio.",
   "author": {
     "name": "Continuum AI Corp",
     "url": "https://www.orcarouter.ai"
@@ -35,7 +35,7 @@
     "api_key": {
       "type": "string",
       "title": "OrcaRouter API Key",
-      "description": "Optional. Catalog tools (models_list, model_card, providers_list) work without a key. Required only for orcarouter_chat. Get one at https://www.orcarouter.ai/console",
+      "description": "Optional. Catalog tools (models_list, model_card, providers_list) work without a key. Required for orcarouter_chat, and for the email tools, which need a key bound to an agent (Console → Agents → API access). Get one at https://www.orcarouter.ai/console",
       "sensitive": true,
       "required": false
     }
@@ -56,6 +56,14 @@
     {
       "name": "orcarouter_chat",
       "description": "Single-turn chat with optional fallback chain (up to 5 models, automatic retry on failure). For OpenAI reasoning models (gpt-5/o1/o3), max_tokens auto-translates to max_completion_tokens. API key required."
+    },
+    {
+      "name": "orcarouter_email_send",
+      "description": "Send an email as your OrcaRouter agent, from its own provisioned address. Idempotent with a client_ref; failures carry the server's code (send_in_progress, send_key_burned, policy_declined, ...). API key bound to an agent required."
+    },
+    {
+      "name": "orcarouter_email_messages",
+      "description": "List the agent's messages, newest first: outbound sends with their status and received mail that passed the guardrail. Metadata only. API key bound to an agent required."
     }
   ],
   "tools_generated": false,

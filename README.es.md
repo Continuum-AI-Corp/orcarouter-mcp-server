@@ -79,8 +79,9 @@ claude mcp add orcarouter -s user \
 
 El [`.mcp.json`](.mcp.json) en la raíz es la misma configuración en la ubicación estándar de [Open Plugins](https://open-plugins.com), de modo que las herramientas de registro/descubrimiento que lo escanean (por ejemplo, [cursor.directory](https://cursor.directory)) pueden detectar este servidor automáticamente.
 
-Requiere Node.js 18 o superior. La variable de entorno `ORCAROUTER_API_KEY` solo
-es necesaria para `orcarouter_chat`; las herramientas del catálogo funcionan sin ella.
+Requiere Node.js 18 o superior. La variable de entorno `ORCAROUTER_API_KEY` es
+necesaria para `orcarouter_chat` y las herramientas de email (que requieren una clave
+vinculada a un agente); las herramientas del catálogo funcionan sin ella.
 
 ## Herramientas
 
@@ -88,6 +89,8 @@ es necesaria para `orcarouter_chat`; las herramientas del catálogo funcionan si
 - `orcarouter_models_list` — explora el catálogo (precios, contexto, capacidades)
 - `orcarouter_model_card` — información detallada de un modelo
 - `orcarouter_providers_list` — lista los proveedores con conteos de modelos
+- `orcarouter_email_send` — envía un email como tu agente de OrcaRouter (idempotente con `client_ref`)
+- `orcarouter_email_messages` — lista los emails enviados y recibidos del agente (solo metadatos)
 
 Los esquemas completos de entrada se exponen en tiempo de ejecución a través del método MCP `tools/list` — tu cliente MCP (Claude Desktop, Cursor, etc.) los lee automáticamente.
 
@@ -95,7 +98,7 @@ Los esquemas completos de entrada se exponen en tiempo de ejecución a través d
 
 | Nombre                       | Requerido | Descripción                                              |
 | ---------------------------- | --------- | -------------------------------------------------------- |
-| `ORCAROUTER_API_KEY`         | opcional  | Clave de API de OrcaRouter. Solo necesaria para `orcarouter_chat`. |
+| `ORCAROUTER_API_KEY`         | opcional  | Clave de API de OrcaRouter. Necesaria para `orcarouter_chat` y las herramientas de email; estas requieren una clave vinculada a un agente (Console → Agents → API access). |
 | `ORCAROUTER_BASE_URL`        | opcional  | URL base de la API. Por defecto `https://api.orcarouter.ai`. |
 | `ORCAROUTER_REQUEST_TIMEOUT` | opcional  | Tiempo de espera HTTP por solicitud en **segundos**. Por defecto `300`. |
 

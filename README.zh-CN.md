@@ -77,8 +77,8 @@ claude mcp add orcarouter -s user \
 
 根目录的 [`.mcp.json`](.mcp.json) 是符合 [Open Plugins](https://open-plugins.com) 标准位置的同一份配置，让扫描该文件的注册/发现工具（如 [cursor.directory](https://cursor.directory)）能自动识别本 server。
 
-需要 Node.js 18 或更高版本。`ORCAROUTER_API_KEY` 环境变量仅在使用
-`orcarouter_chat` 时必填；目录类工具无需 API key 即可使用。
+需要 Node.js 18 或更高版本。`ORCAROUTER_API_KEY` 环境变量在使用
+`orcarouter_chat` 和邮件工具时必填（邮件工具需要绑定到智能体的 key）；目录类工具无需 API key 即可使用。
 
 ## 工具
 
@@ -86,6 +86,8 @@ claude mcp add orcarouter -s user \
 - `orcarouter_models_list` — 浏览目录（定价、上下文、能力）
 - `orcarouter_model_card` — 单个模型的详细信息
 - `orcarouter_providers_list` — 列出 providers 及对应模型数量
+- `orcarouter_email_send` — 以你的 OrcaRouter 智能体身份发送邮件（带 `client_ref` 时幂等）
+- `orcarouter_email_messages` — 列出智能体发出和收到的邮件（仅元数据）
 
 完整的输入 schema 会在运行时通过 MCP 的 `tools/list` 方法暴露 —— 你的 MCP 客户端（Claude Desktop、Cursor 等）会自动读取。
 
@@ -93,7 +95,7 @@ claude mcp add orcarouter -s user \
 
 | 名称                        | 是否必填 | 说明                                                         |
 | --------------------------- | -------- | ------------------------------------------------------------ |
-| `ORCAROUTER_API_KEY`        | 可选     | OrcaRouter API key。仅 `orcarouter_chat` 需要。              |
+| `ORCAROUTER_API_KEY`        | 可选     | OrcaRouter API key。`orcarouter_chat` 和邮件工具需要；邮件工具需要绑定到智能体的 key (Console → Agents → API access)。 |
 | `ORCAROUTER_BASE_URL`       | 可选     | API base URL。默认值为 `https://api.orcarouter.ai`。         |
 | `ORCAROUTER_REQUEST_TIMEOUT`| 可选     | 单次请求的 HTTP 超时时间，单位为**秒**。默认值为 `300`。       |
 

@@ -79,8 +79,9 @@ claude mcp add orcarouter -s user \
 
 The root [`.mcp.json`](.mcp.json) is the same config in the [Open Plugins](https://open-plugins.com) standard location, so registry/discovery tools that scan for it (e.g. [cursor.directory](https://cursor.directory)) can pick this server up automatically.
 
-Requires Node.js 18 or later. The `ORCAROUTER_API_KEY` env var is only
-required for `orcarouter_chat`; catalog tools work without it.
+Requires Node.js 18 or later. The `ORCAROUTER_API_KEY` env var is required
+for `orcarouter_chat` and the email tools (which need a key bound to an
+agent); catalog tools work without it.
 
 ## Tools
 
@@ -88,6 +89,8 @@ required for `orcarouter_chat`; catalog tools work without it.
 - `orcarouter_models_list` — browse the catalog (pricing, context, capabilities)
 - `orcarouter_model_card` — detailed info for one model
 - `orcarouter_providers_list` — list providers with model counts
+- `orcarouter_email_send` — send an email as your OrcaRouter agent (idempotent with a `client_ref`)
+- `orcarouter_email_messages` — list the agent's sent and received mail (metadata only)
 
 Full input schemas are exposed at runtime via the MCP `tools/list` method — your MCP client (Claude Desktop, Cursor, etc.) reads them automatically.
 
@@ -95,7 +98,7 @@ Full input schemas are exposed at runtime via the MCP `tools/list` method — yo
 
 | Name                        | Required | Description                                              |
 | --------------------------- | -------- | -------------------------------------------------------- |
-| `ORCAROUTER_API_KEY`        | optional | OrcaRouter API key. Required only for `orcarouter_chat`. |
+| `ORCAROUTER_API_KEY`        | optional | OrcaRouter API key. Required for `orcarouter_chat` and the email tools; the email tools need a key bound to an agent (Console → Agents → API access). |
 | `ORCAROUTER_BASE_URL`       | optional | API base URL. Defaults to `https://api.orcarouter.ai`.   |
 | `ORCAROUTER_REQUEST_TIMEOUT`| optional | Per-request HTTP timeout in **seconds**. Defaults to `300`. |
 

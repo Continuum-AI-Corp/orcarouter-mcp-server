@@ -80,7 +80,8 @@ claude mcp add orcarouter -s user \
 Файл [`.mcp.json`](.mcp.json) в корне репозитория — та же конфигурация в стандартном расположении [Open Plugins](https://open-plugins.com), благодаря чему инструменты реестра/обнаружения, которые его сканируют (например, [cursor.directory](https://cursor.directory)), могут автоматически распознать этот сервер.
 
 Требуется Node.js 18 или новее. Переменная окружения `ORCAROUTER_API_KEY` нужна
-только для `orcarouter_chat`; инструменты каталога работают и без неё.
+для `orcarouter_chat` и почтовых инструментов (им нужен ключ, привязанный к агенту);
+инструменты каталога работают и без неё.
 
 ## Инструменты
 
@@ -88,6 +89,8 @@ claude mcp add orcarouter -s user \
 - `orcarouter_models_list` — просмотреть каталог (цены, контекст, возможности)
 - `orcarouter_model_card` — подробная информация по одной модели
 - `orcarouter_providers_list` — список провайдеров с количеством моделей
+- `orcarouter_email_send` — отправить письмо от имени вашего агента OrcaRouter (идемпотентно с `client_ref`)
+- `orcarouter_email_messages` — список отправленных и полученных писем агента (только метаданные)
 
 Полные схемы входных данных доступны во время выполнения через MCP-метод `tools/list` — ваш MCP-клиент (Claude Desktop, Cursor и т. д.) читает их автоматически.
 
@@ -95,7 +98,7 @@ claude mcp add orcarouter -s user \
 
 | Имя                         | Обязательность | Описание                                                       |
 | --------------------------- | -------------- | -------------------------------------------------------------- |
-| `ORCAROUTER_API_KEY`        | необязательно  | Ключ OrcaRouter API. Требуется только для `orcarouter_chat`.   |
+| `ORCAROUTER_API_KEY`        | необязательно  | Ключ OrcaRouter API. Нужен для `orcarouter_chat` и почтовых инструментов; им нужен ключ, привязанный к агенту (Console → Agents → API access). |
 | `ORCAROUTER_BASE_URL`       | необязательно  | Базовый URL API. По умолчанию `https://api.orcarouter.ai`.     |
 | `ORCAROUTER_REQUEST_TIMEOUT`| необязательно  | HTTP-таймаут на запрос в **секундах**. По умолчанию `300`.      |
 

@@ -75,7 +75,7 @@ claude mcp add orcarouter -s user \
 
 루트의 [`.mcp.json`](.mcp.json)은 [Open Plugins](https://open-plugins.com) 표준 위치에 있는 동일한 구성으로, 이 파일을 스캔하는 레지스트리/디스커버리 도구(예: [cursor.directory](https://cursor.directory))가 이 서버를 자동으로 인식할 수 있습니다.
 
-Node.js 18 이상이 필요합니다. `ORCAROUTER_API_KEY` 환경 변수는 `orcarouter_chat`에만 필요하며, 카탈로그 도구는 키 없이도 작동합니다.
+Node.js 18 이상이 필요합니다. `ORCAROUTER_API_KEY` 환경 변수는 `orcarouter_chat`과 이메일 도구(에이전트에 바인딩된 키 필요)에 필요하며, 카탈로그 도구는 키 없이도 작동합니다.
 
 ## 도구
 
@@ -83,6 +83,8 @@ Node.js 18 이상이 필요합니다. `ORCAROUTER_API_KEY` 환경 변수는 `orc
 - `orcarouter_models_list` — 카탈로그 탐색 (가격, 컨텍스트, 기능)
 - `orcarouter_model_card` — 특정 모델에 대한 상세 정보
 - `orcarouter_providers_list` — 모델 수와 함께 프로바이더 목록 표시
+- `orcarouter_email_send` — OrcaRouter 에이전트로서 이메일 발송 (`client_ref`로 멱등)
+- `orcarouter_email_messages` — 에이전트가 보내고 받은 이메일 목록 (메타데이터만)
 
 전체 입력 스키마는 MCP `tools/list` 메서드를 통해 런타임에 노출됩니다 — MCP 클라이언트(Claude Desktop, Cursor 등)가 이를 자동으로 읽어들입니다.
 
@@ -90,7 +92,7 @@ Node.js 18 이상이 필요합니다. `ORCAROUTER_API_KEY` 환경 변수는 `orc
 
 | Name                        | Required | Description                                              |
 | --------------------------- | -------- | -------------------------------------------------------- |
-| `ORCAROUTER_API_KEY`        | 선택 | OrcaRouter API 키. `orcarouter_chat`에만 필요합니다. |
+| `ORCAROUTER_API_KEY`        | 선택 | OrcaRouter API 키. `orcarouter_chat`과 이메일 도구에 필요합니다. 이메일 도구에는 에이전트에 바인딩된 키가 필요합니다 (Console → Agents → API access). |
 | `ORCAROUTER_BASE_URL`       | 선택 | API 기본 URL. 기본값은 `https://api.orcarouter.ai`입니다.   |
 | `ORCAROUTER_REQUEST_TIMEOUT`| 선택 | 요청당 HTTP 타임아웃(**초** 단위). 기본값은 `300`입니다. |
 

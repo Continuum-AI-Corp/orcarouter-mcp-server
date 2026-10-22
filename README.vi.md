@@ -79,8 +79,9 @@ claude mcp add orcarouter -s user \
 
 File [`.mcp.json`](.mcp.json) ở thư mục gốc là cùng cấu hình tại vị trí chuẩn của [Open Plugins](https://open-plugins.com), giúp các công cụ registry/khám phá quét nó (ví dụ [cursor.directory](https://cursor.directory)) có thể tự động nhận diện server này.
 
-Yêu cầu Node.js 18 trở lên. Biến môi trường `ORCAROUTER_API_KEY` chỉ
-bắt buộc cho `orcarouter_chat`; các công cụ danh mục hoạt động mà không cần nó.
+Yêu cầu Node.js 18 trở lên. Biến môi trường `ORCAROUTER_API_KEY` bắt buộc cho
+`orcarouter_chat` và các công cụ email (cần key đã gắn với một agent); các công cụ
+danh mục hoạt động mà không cần nó.
 
 ## Công cụ
 
@@ -88,6 +89,8 @@ bắt buộc cho `orcarouter_chat`; các công cụ danh mục hoạt động m�
 - `orcarouter_models_list` — duyệt danh mục (giá, ngữ cảnh, khả năng)
 - `orcarouter_model_card` — thông tin chi tiết cho một mô hình
 - `orcarouter_providers_list` — liệt kê các provider kèm số lượng mô hình
+- `orcarouter_email_send` — gửi email với tư cách agent OrcaRouter của bạn (idempotent với `client_ref`)
+- `orcarouter_email_messages` — liệt kê email đã gửi và đã nhận của agent (chỉ metadata)
 
 Các schema đầu vào đầy đủ được phơi ra trong thời gian chạy thông qua phương thức MCP `tools/list` — client MCP của bạn (Claude Desktop, Cursor, v.v.) đọc chúng tự động.
 
@@ -95,7 +98,7 @@ Các schema đầu vào đầy đủ được phơi ra trong thời gian chạy 
 
 | Tên                         | Bắt buộc  | Mô tả                                                    |
 | --------------------------- | --------- | -------------------------------------------------------- |
-| `ORCAROUTER_API_KEY`        | tùy chọn  | API key OrcaRouter. Chỉ bắt buộc cho `orcarouter_chat`.  |
+| `ORCAROUTER_API_KEY`        | tùy chọn  | API key OrcaRouter. Bắt buộc cho `orcarouter_chat` và các công cụ email; công cụ email cần key đã gắn với một agent (Console → Agents → API access). |
 | `ORCAROUTER_BASE_URL`       | tùy chọn  | URL gốc của API. Mặc định là `https://api.orcarouter.ai`.|
 | `ORCAROUTER_REQUEST_TIMEOUT`| tùy chọn  | Thời gian chờ HTTP cho mỗi yêu cầu tính bằng **giây**. Mặc định là `300`. |
 

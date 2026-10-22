@@ -78,7 +78,7 @@ claude mcp add orcarouter -s user \
 ルートの [`.mcp.json`](.mcp.json) は [Open Plugins](https://open-plugins.com) 標準の場所に置かれた同じ設定です。これにより、このファイルをスキャンするレジストリ/ディスカバリーツール（例: [cursor.directory](https://cursor.directory)）が本サーバーを自動的に検出できます。
 
 Node.js 18 以降が必要です。`ORCAROUTER_API_KEY` 環境変数は
-`orcarouter_chat` でのみ必要で、カタログ系ツールはこれなしで動作します。
+`orcarouter_chat` とメールツール（エージェントに紐付けたキーが必要）で必要で、カタログ系ツールはこれなしで動作します。
 
 ## ツール
 
@@ -86,6 +86,8 @@ Node.js 18 以降が必要です。`ORCAROUTER_API_KEY` 環境変数は
 - `orcarouter_models_list` — カタログを閲覧（料金、コンテキスト、機能）
 - `orcarouter_model_card` — 1 つのモデルの詳細情報
 - `orcarouter_providers_list` — プロバイダー一覧とモデル数
+- `orcarouter_email_send` — OrcaRouter エージェントとしてメールを送信（`client_ref` で冪等）
+- `orcarouter_email_messages` — エージェントの送受信メール一覧（メタデータのみ）
 
 入力スキーマの全文は MCP の `tools/list` メソッドを通じて実行時に公開されます — お使いの MCP クライアント（Claude Desktop、Cursor など）が自動で読み込みます。
 
@@ -93,7 +95,7 @@ Node.js 18 以降が必要です。`ORCAROUTER_API_KEY` 環境変数は
 
 | Name                        | Required | 説明                                                       |
 | --------------------------- | -------- | ---------------------------------------------------------- |
-| `ORCAROUTER_API_KEY`        | optional | OrcaRouter API キー。`orcarouter_chat` でのみ必要です。      |
+| `ORCAROUTER_API_KEY`        | optional | OrcaRouter API キー。`orcarouter_chat` とメールツールで必要です。メールツールにはエージェントに紐付けたキーが必要です (Console → Agents → API access)。 |
 | `ORCAROUTER_BASE_URL`       | optional | API ベース URL。デフォルトは `https://api.orcarouter.ai`。   |
 | `ORCAROUTER_REQUEST_TIMEOUT`| optional | リクエストごとの HTTP タイムアウト（**秒**単位）。デフォルトは `300`。 |
 

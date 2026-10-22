@@ -4,6 +4,30 @@ All notable changes to `@orcarouter/mcp` follow the
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and this
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- **Agent email tools.** `orcarouter_email_send` sends an email as the
+  OrcaRouter agent the API key is bound to, from the agent's own provisioned
+  address (`POST /v1/agents/email/send`). `orcarouter_email_messages` lists
+  the agent's outbound sends with their status and its released inbound mail,
+  metadata only (`GET /v1/agents/messages`). Both need an `ORCAROUTER_API_KEY`
+  bound to an agent (Console → Agents → API access).
+
+  A failed send comes back as isError text that keeps the server's whole
+  envelope — `code`, `retry_ref`, `message_id`, `deny` — after a one-line
+  summary, because the right retry depends on `code`: `send_in_progress`
+  means retry with the same `client_ref` (a new one sends twice),
+  `send_key_burned` means use a new one. A send that gets no answer at all
+  says its outcome is unknown and how to retry it safely.
+
+  `limit` on the message list is 1–200: the server reads anything else as its
+  default of 100.
+
+- **The MCPB `manifest.json` tools list is pinned to the registered tools**
+  by a test, so a tool added to the server cannot be missing from it.
+
 ## v1.1.5
 
 ### Changed

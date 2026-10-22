@@ -64,21 +64,38 @@ function text(result: { content: Array<{ text: string }> }): string {
 }
 
 describe("orcarouter_email_send", () => {
-  it("declares its name, a required `to` and no unknown fields", () => {
+  it("declares its name and no unknown fields; recipients are checked across to and cc", () => {
     expect(emailSendTool.name).toBe("orcarouter_email_send");
-    expect(emailSendTool.inputSchema.required).toEqual(["to"]);
+    // The server takes to and cc together, so neither is required alone.
+    expect(emailSendTool.inputSchema.required).toBeUndefined();
     expect(emailSendTool.inputSchema.additionalProperties).toBe(false);
     expect(Object.keys(emailSendTool.inputSchema.properties).sort()).toEqual(
       ["cc", "client_ref", "html", "reply_to", "run_ref", "subject", "text", "to"],
     );
   });
 
-  it("schema refuses an empty `to`, an empty address and an unknown field", () => {
+  it("schema refuses an empty address and an unknown field", () => {
     const validate = makeValidator();
     expect(validate({ to: ["a@example.com"], subject: "s" })).toBe(true);
-    expect(validate({ to: [], subject: "s" })).toBe(false);
+    expect(validate({ cc: ["a@example.com"], subject: "s" })).toBe(true);
     expect(validate({ to: [""], subject: "s" })).toBe(false);
+    expect(validate({ cc: [""], subject: "s" })).toBe(false);
     expect(validate({ to: ["a@example.com"], from: "x@example.com" })).toBe(false);
+  });
+
+  it("refuses a send with no recipient in to or cc before calling OrcaRouter", async () => {
+    for (const input of [{ subject: "s" }, { to: [], subject: "s" }, { to: [], cc: [], subject: "s" }]) {
+      await expect(
+        emailSendTool.handler(input, { client: client() }),
+        JSON.stringify(input),
+      ).rejects.toThrow(/at least one recipient is required, in to or cc/);
+    }
+  });
+
+  it("sends a Cc-only message as the server accepts one", async () => {
+    const seen = capture(sent);
+    await emailSendTool.handler({ cc: ["b@example.com"], text: "fyi" }, { client: client() });
+    expect(seen.body).toEqual({ cc: ["b@example.com"], text: "fyi" });
   });
 
   it("requires an API key", async () => {
@@ -261,8 +278,8 @@ describe("orcarouter_email_send", () => {
       [402, "budget_exceeded", /retrying will not help until it is topped up/],
       [403, "agent_not_active", /Nothing was sent\. Once the agent is active/],
       [409, "no_capability_address", /Nothing was sent\. Once the agent is active with an email address/],
-      [403, "policy_declined", /needs a human's approval \(approval 31\): retry with the same client_ref/, { deny: { reason: "approval required", approval_id: 31 } }],
-      [403, "policy_declined", /spend policy declined this send \(see deny\)/, { deny: { reason: "domain blocked" } }],
+      [403, "policy_declined", /spend policy declined this send, so nothing was sent: deny below says why/, { deny: { reason: "approval required", approval_id: 31 } }],
+      [422, "all_recipients_suppressed", /suppression list .* the same recipients are refused again/],
     ];
     for (const [status, code, hint, extra] of cases) {
       capture(() =>
@@ -355,13 +372,55 @@ describe("orcarouter_email_send", () => {
     expect(out).not.toContain("The outcome is unknown");
   });
 
-  it("refuses a blank client_ref, which the server would trim to none", async () => {
-    await expect(
-      emailSendTool.handler(
-        { to: ["a@example.com"], subject: "s", client_ref: "   " },
-        { client: client() },
+  // The server trims with Go's strings.TrimSpace, which also strips U+0085
+  // (NEL), where String.trim does not.
+  it("refuses a client_ref the server would trim to none, or one that is not a string", async () => {
+    for (const ref of ["   ", "\u0085", " \u0085\t", 1234]) {
+      await expect(
+        emailSendTool.handler(
+          // @ts-expect-error - a non-string reaches a handler called directly
+          { to: ["a@example.com"], subject: "s", client_ref: ref },
+          { client: client() },
+        ),
+        JSON.stringify(ref),
+      ).rejects.toThrow(/client_ref must be a non-blank string/);
+    }
+  });
+
+  it("send_in_progress says where waiting stops, so an agent does not poll forever", async () => {
+    capture(() =>
+      HttpResponse.json(
+        { success: false, code: "send_in_progress", message: "in progress", retry_ref: "k", message_id: 9 },
+        { status: 409 },
       ),
-    ).rejects.toThrow(/client_ref must not be blank/);
+    );
+    const result = await emailSendTool.handler(
+      { to: ["a@example.com"], subject: "s", client_ref: "k" },
+      { client: client() },
+    );
+    expect(text(result)).toContain("look for message 9 in orcarouter_email_messages");
+    expect(text(result)).toContain("the outcome stays unknown");
+    expect(text(result)).toContain("tell the operator");
+    expect(text(result)).not.toContain("until message");
+  });
+
+  it("bounds every string in a JSON error body, and cuts on a code point", async () => {
+    const long = `${"x".repeat(299)}😀${"y".repeat(5000)}`;
+    capture(() =>
+      HttpResponse.json(
+        { error: long, detail: { inner: long }, reason: long },
+        { status: 403 },
+      ),
+    );
+    const result = await emailSendTool.handler(
+      { to: ["a@example.com"], subject: "s" },
+      { client: client() },
+    );
+    const out = text(result);
+    expect(out.length).toBeLessThan(2500);
+    // The cut lands after the whole emoji, never between its two halves.
+    expect(out).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
+    expect(out).toContain("😀…");
   });
 
   it("refuses a run_ref that would not reach the server as written", async () => {

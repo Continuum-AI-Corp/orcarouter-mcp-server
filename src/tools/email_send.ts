@@ -13,7 +13,7 @@ import {
 } from "./types.js";
 
 interface EmailSendInput {
-  to: string[];
+  to?: string[];
   cc?: string[];
   reply_to?: string;
   subject?: string;
@@ -73,12 +73,16 @@ const HANDLER_5XX = new Set([
   "guardrail_unavailable",
 ]);
 
+// The characters Go's strings.TrimSpace strips, which is how the server reads
+// a client_ref: JS whitespace plus U+0085 (NEL), which String.trim keeps.
+const GO_SPACE = /^[\s\u0085]+|[\s\u0085]+$/g;
+
 // When the send's fate is unknown — no answer, or an answer that did not come
 // from the send handler — the only safe retry reuses the key.
 function unknownOutcome(clientRef?: string): string {
   const next = clientRef
     ? `Retry with the same client_ref "${clientRef}": OrcaRouter returns the send that landed, or answers send_in_progress.`
-    : "This call carried no client_ref, so a retry could send it twice: check orcarouter_email_messages for it first, and pass a client_ref next time.";
+    : "This call carried no client_ref, so a retry could send it twice: first look in orcarouter_email_messages for a send with this subject and recipients, and pass a client_ref next time.";
   return `The outcome is unknown — the email may or may not have been sent. ${next}`;
 }
 
@@ -106,11 +110,18 @@ function sendHint(f: CapabilityFailure, clientRef?: string): string | undefined 
       const retry = retryRef
         ? `retry with client_ref "${retryRef}" — a new client_ref would send the email a second time`
         : "retry with the same client_ref — a new one would send the email a second time";
-      const poll =
+      const look =
         messageId !== undefined
-          ? `, or poll orcarouter_email_messages until message ${messageId} reads sent or failed`
+          ? `, or look for message ${messageId} in orcarouter_email_messages`
           : "";
-      return `This send may still land: ${retry}${poll}.`;
+      // A send whose provider answer was lost stays `accepted`: nothing moves
+      // it later, and the key keeps answering send_in_progress. Waiting for
+      // sent/failed would never end, so the stopping point is said.
+      return (
+        `This send may already have landed, or may still: ${retry}${look}. ` +
+        "If it keeps answering send_in_progress, or the message stays accepted, the outcome stays unknown: " +
+        "do not re-send under a new client_ref unless a possible duplicate is acceptable — tell the operator."
+      );
     }
     case "send_key_burned":
       return "That client_ref is spent (its send failed): retry with a new client_ref.";
@@ -131,15 +142,13 @@ function sendHint(f: CapabilityFailure, clientRef?: string): string | undefined 
       return "The workspace's content policy blocked this message: rewrite the subject or body. Retrying the same content is blocked again.";
     case "budget_exceeded":
       return "Out of money for this send (the workspace wallet, the agent's monthly cap, or the run's envelope), so nothing was sent; retrying will not help until it is topped up or the cap resets.";
-    case "policy_declined": {
-      const deny =
-        f.body.deny && typeof f.body.deny === "object"
-          ? (f.body.deny as Record<string, unknown>)
-          : {};
-      return typeof deny.approval_id === "number" && deny.approval_id > 0
-        ? `This send needs a human's approval (approval ${deny.approval_id}): retry with the same client_ref once it is approved.`
-        : "The workspace's spend policy declined this send (see deny): the same send is declined again.";
-    }
+    case "policy_declined":
+      // `deny` carries the reason, the server's own hint, and an approval id
+      // when a human has to approve. Whether a retry then passes is the
+      // server's to say, so none is promised here.
+      return "The workspace's spend policy declined this send, so nothing was sent: deny below says why, and gives the approval id when a human has to approve it.";
+    case "all_recipients_suppressed":
+      return "Every recipient is on the suppression list (a hard bounce or a complaint), so nothing was sent: the same recipients are refused again.";
     case "agent_not_active":
     case "no_capability_address":
       return "Nothing was sent. Once the agent is active with an email address, retry; if the same client_ref then answers send_key_burned, use a new one.";
@@ -187,8 +196,8 @@ export const emailSendTool: ToolDefinition<EmailSendInput> = {
       to: {
         type: "array",
         items: { type: "string", minLength: 1 },
-        minItems: 1,
-        description: "Recipient email addresses (at least one).",
+        description:
+          "Recipient email addresses. to and cc together need at least one.",
       },
       cc: {
         type: "array",
@@ -234,21 +243,25 @@ export const emailSendTool: ToolDefinition<EmailSendInput> = {
           `spaces, at most ${RUN_REF_MAX} characters.`,
       },
     },
-    required: ["to"],
     additionalProperties: false,
   },
   async handler(input, { client }) {
     if (!client.apiKey) {
       throw new MissingApiKeyError(TOOL);
     }
-    // The schema says the same; kept for callers that skip it (the handler
-    // is exported), as the chat tool does.
+    // Checked here as well as by the schema, for callers that skip it (the
+    // handler is exported), as the chat tool does. The server takes to and cc
+    // together: a Cc-only send is a send.
+    const lists = [input.to, input.cc].filter((l) => l !== undefined);
     if (
-      !Array.isArray(input.to) ||
-      input.to.length === 0 ||
-      input.to.some((a) => typeof a !== "string" || a.length === 0)
+      lists.some(
+        (l) => !Array.isArray(l) || l.some((a) => typeof a !== "string" || a.length === 0),
+      )
     ) {
-      throw new ValidationError("to must be a non-empty array of email addresses");
+      throw new ValidationError("to and cc must be arrays of email addresses");
+    }
+    if (lists.reduce((n, l) => n + (l as string[]).length, 0) === 0) {
+      throw new ValidationError("at least one recipient is required, in to or cc");
     }
     // The server trims before it checks, so a blank subject is no content.
     const hasContent = [input.subject, input.text, input.html].some(
@@ -262,14 +275,20 @@ export const emailSendTool: ToolDefinition<EmailSendInput> = {
     // The server trims client_ref and mints a key of its own for a blank one,
     // so a blank key dedupes nothing — and "retry with the same client_ref"
     // would then send twice.
-    if (input.client_ref !== undefined && input.client_ref.trim().length === 0) {
+    if (
+      input.client_ref !== undefined &&
+      (typeof input.client_ref !== "string" ||
+        input.client_ref.replace(GO_SPACE, "").length === 0)
+    ) {
       throw new ValidationError(
-        "client_ref must not be blank: omit it, or pass a stable key such as task-1234",
+        "client_ref must be a non-blank string: omit it, or pass a stable key such as task-1234",
       );
     }
     if (
       input.run_ref !== undefined &&
-      (input.run_ref.length > RUN_REF_MAX || !RUN_REF.test(input.run_ref))
+      (typeof input.run_ref !== "string" ||
+        input.run_ref.length > RUN_REF_MAX ||
+        !RUN_REF.test(input.run_ref))
     ) {
       throw new ValidationError(
         `run_ref must be printable ASCII with no surrounding spaces, at most ${RUN_REF_MAX} characters`,
@@ -278,12 +297,12 @@ export const emailSendTool: ToolDefinition<EmailSendInput> = {
 
     // Only the fields the caller set: the server treats an absent field and
     // an empty one alike, and the request then shows exactly what was asked.
-    const body: Record<string, unknown> = { to: input.to };
-    for (const key of ["cc", "reply_to", "subject", "text", "html", "client_ref"] as const) {
+    const body: Record<string, unknown> = {};
+    for (const key of ["to", "cc", "reply_to", "subject", "text", "html", "client_ref"] as const) {
       if (input[key] !== undefined) body[key] = input[key];
     }
     const headers: Record<string, string> = {};
-    if (typeof input.run_ref === "string" && input.run_ref.length > 0) {
+    if (input.run_ref !== undefined) {
       headers[RUN_REF_HEADER] = input.run_ref;
     }
 

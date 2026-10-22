@@ -19,20 +19,25 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   envelope — `code`, `retry_ref`, `message_id`, `deny` — after a one-line
   summary and a line on what to do next, because the right retry depends on
   `code`: `send_in_progress` means retry with the same `client_ref` (a new one
-  sends twice); `send_key_burned` and `provider_send_failed` mean use a new
-  one; `internal_error`, `guardrail_unavailable`, an overload refusal and a
-  429 mean nothing was sent (after a 500, a key that stays stuck may be
-  replaced); `blocked_by_guardrail`, `budget_exceeded`, `policy_declined`
-  (and its approval) and `provider_unavailable` say why a retry will not
+  sends twice), and says where waiting stops, since a send whose provider
+  answer was lost stays `accepted`; `send_key_burned` and
+  `provider_send_failed` mean use a new one; `internal_error`,
+  `guardrail_unavailable`, an overload refusal and a 429 mean nothing was
+  sent (after a 500, a key that stays stuck may be replaced);
+  `blocked_by_guardrail`, `budget_exceeded`, `all_recipients_suppressed`,
+  `policy_declined` and `provider_unavailable` say why a retry will not
   help. The code is read where OrcaRouter puts it (`code`, the binding
   middleware's `error`, the overload middleware's `error.code`), and prose a
   proxy puts in `error` is not taken for one. A send whose outcome is unknown
   — no answer, a 5xx that did not come from the send handler, a 2xx that is
   not JSON — says so and how to retry it safely. An error page is quoted
-  once, bounded to 300 characters.
+  once, and every string of an error body is bounded to 300 characters, cut
+  on a code point.
 
-  `client_ref` must not be blank (the server trims it and mints its own key,
-  which dedupes nothing). `run_ref` is sent as `X-Orca-Run-Ref`, charging the
+  Recipients are checked across `to` and `cc` together, as the server does:
+  a Cc-only send is a send. `client_ref` must not be blank by the server's
+  own trimming (Go's, which also strips U+0085): the server would mint its
+  own key, which dedupes nothing. `run_ref` is sent as `X-Orca-Run-Ref`, charging the
   send against a run's spend envelope; it must be printable ASCII without
   surrounding spaces so it reaches the server as written. `limit` on the
   message list is 1–200: the server reads anything else as its default of

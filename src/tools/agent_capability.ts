@@ -31,9 +31,24 @@ export interface CapabilityFailure {
 // line, not 50 KB of markup in its context.
 const MAX_MESSAGE = 300;
 
+// Cut by code point, so an emoji at the edge is not split into half a
+// surrogate pair.
 function bounded(text: string): string {
-  const flat = text.replace(/\s+/g, " ").trim();
-  return flat.length > MAX_MESSAGE ? `${flat.slice(0, MAX_MESSAGE)}…` : flat;
+  const flat = Array.from(text.replace(/\s+/g, " ").trim());
+  return flat.length > MAX_MESSAGE ? `${flat.slice(0, MAX_MESSAGE).join("")}…` : flat.join("");
+}
+
+// Every string in a JSON error body is bounded, not only `message`: a WAF can
+// put its page in `error`, `detail` or a nested field just as well.
+function boundedJson(value: unknown, depth = 0): unknown {
+  if (typeof value === "string") return bounded(value);
+  if (depth >= 4 || value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value.slice(0, 50).map((v) => boundedJson(v, depth + 1));
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    out[k] = boundedJson(v, depth + 1);
+  }
+  return out;
 }
 
 // OrcaRouter's codes are identifiers (send_in_progress, agent_binding_required,
@@ -87,10 +102,10 @@ export function capabilityErrorResult(
   hint?: (f: CapabilityFailure) => string | undefined,
 ): McpToolResult {
   const f = readCapabilityFailure(err);
-  const details: Record<string, unknown> = { status: f.status, ...f.body };
-  if (typeof details.message === "string") {
-    details.message = bounded(details.message);
-  }
+  const details: Record<string, unknown> = {
+    status: f.status,
+    ...(boundedJson(f.body) as Record<string, unknown>),
+  };
   if (f.retryAfter !== undefined) {
     details.retry_after = f.retryAfter;
   }

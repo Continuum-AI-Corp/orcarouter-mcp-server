@@ -14,10 +14,12 @@ import { errorResult, type McpToolResult } from "./types.js";
 /** One failed capability call, read once. */
 export interface CapabilityFailure {
   status: number;
-  /** The server's code: `code`, or the middleware's `error` (see below). */
+  /** OrcaRouter's code for the failure, wherever its answer put it. */
   code?: string;
-  /** The envelope without its redundant `success: false`. */
+  /** The JSON envelope without its redundant `success: false`; {} if none. */
   body: Record<string, unknown>;
+  /** Whether the answer was a JSON object at all. */
+  json: boolean;
   /** The message, bounded (MAX_MESSAGE). */
   message: string;
   /** Seconds, on a 429 that said. */
@@ -34,27 +36,37 @@ function bounded(text: string): string {
   return flat.length > MAX_MESSAGE ? `${flat.slice(0, MAX_MESSAGE)}…` : flat;
 }
 
-// The capability handlers name the failure in `code`. The middleware in front
-// of them refuses a key that is not bound to an agent with `error` instead
-// (`{ error: "agent_binding_required", reason }`), so that is read as the code
-// when there is none.
-export function readCapabilityFailure(err: ApiError): CapabilityFailure {
-  const body =
-    err.body && typeof err.body === "object" && !Array.isArray(err.body)
-      ? { ...(err.body as Record<string, unknown>) }
-      : {};
-  delete body.success;
-  let code: string | undefined;
-  for (const v of [body.code, body.error]) {
-    if (typeof v === "string" && v.length > 0) {
-      code = v;
-      break;
-    }
+// OrcaRouter's codes are identifiers (send_in_progress, agent_binding_required,
+// system_cpu_overloaded). A proxy's `{ "error": "upstream request timeout" }`
+// is prose, and reading it as a code would hide that the answer did not come
+// from OrcaRouter at all.
+const CODE = /^[a-z][a-z0-9_]*$/;
+
+// Where OrcaRouter puts the code: `code` on the capability handlers' own
+// answers; `error` on the agent-binding middleware's refusal
+// (`{ error: "agent_binding_required", reason }`); `error.code` on the
+// OpenAI-shaped refusals of the middleware in front of every relay route
+// (`{ error: { code: "system_cpu_overloaded", message } }`).
+function codeOf(body: Record<string, unknown>): string | undefined {
+  const inner =
+    body.error && typeof body.error === "object" && !Array.isArray(body.error)
+      ? (body.error as Record<string, unknown>).code
+      : undefined;
+  for (const v of [body.code, body.error, inner]) {
+    if (typeof v === "string" && CODE.test(v)) return v;
   }
+  return undefined;
+}
+
+export function readCapabilityFailure(err: ApiError): CapabilityFailure {
+  const json = !!err.body && typeof err.body === "object" && !Array.isArray(err.body);
+  const body = json ? { ...(err.body as Record<string, unknown>) } : {};
+  delete body.success;
   return {
     status: err.status,
-    code,
+    code: codeOf(body),
     body,
+    json,
     message: bounded(err.message ?? ""),
     retryAfter: err instanceof RateLimitError ? err.retryAfter : undefined,
   };
@@ -78,15 +90,12 @@ export function capabilityErrorResult(
   const details: Record<string, unknown> = { status: f.status, ...f.body };
   if (typeof details.message === "string") {
     details.message = bounded(details.message);
-  } else if (f.message && f.message !== f.code) {
-    // A body with no message of its own (a proxy's plain-text or HTML page)
-    // keeps the client's reading of it, bounded; one that only names its
-    // code says nothing more.
-    details.message = f.message;
   }
   if (f.retryAfter !== undefined) {
     details.retry_after = f.retryAfter;
   }
+  // A page that was not JSON (a proxy's HTML or text) is quoted once, bounded,
+  // in the summary; there is no envelope to repeat it in.
   const head =
     `${action} failed (HTTP ${f.status}${f.code ? `, code ${f.code}` : ""})` +
     (f.message && f.message !== f.code ? `: ${f.message}` : ".");
@@ -94,7 +103,9 @@ export function capabilityErrorResult(
   const next =
     hint?.(f) ?? (f.code === "agent_binding_required" ? BIND_HINT : undefined);
   if (next) lines.push(next);
-  lines.push("", JSON.stringify(details, null, 2));
+  if (f.json || f.retryAfter !== undefined) {
+    lines.push("", JSON.stringify(details, null, 2));
+  }
   return errorResult(lines.join("\n"));
 }
 
@@ -107,4 +118,18 @@ export function notJsonText(reason: string): string {
     `the answer was not JSON (${bounded(reason)}). Check that ORCAROUTER_BASE_URL ` +
     `is OrcaRouter's API origin (https://api.orcarouter.ai on the hosted service).`
   );
+}
+
+/**
+ * A 2xx that carried no result: an empty answer, or an envelope without
+ * `data` (or with `success: false`). The client does not expose the status,
+ * so none is claimed.
+ */
+export function missingResultText(
+  action: string,
+  envelope: { code?: string; message?: string } | undefined,
+): string {
+  const code = envelope?.code ? ` (code ${envelope.code})` : "";
+  const message = envelope?.message ? `: ${bounded(envelope.message)}` : "";
+  return `${action}: OrcaRouter's answer carried no result${code}${message}.`;
 }

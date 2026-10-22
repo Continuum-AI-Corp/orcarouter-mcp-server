@@ -250,14 +250,24 @@ describe("orcarouter_email_send", () => {
   });
 
   it("says what to do next for each code that has a next step", async () => {
-    const cases: Array<[number, string, RegExp]> = [
+    const cases: Array<[number, string, RegExp, Record<string, unknown>?]> = [
       [502, "provider_send_failed", /not sent, and this client_ref is now spent: a retry needs a new client_ref/],
-      [500, "internal_error", /Nothing reached the provider: retry with the same client_ref/],
-      [503, "internal_error", /Nothing reached the provider: retry with the same client_ref/],
+      // A 500 never reached the provider; a key stuck after it is safe to replace.
+      [500, "internal_error", /retry with the same client_ref .*re-send under a new client_ref/],
+      [503, "internal_error", /spend policy could not be evaluated, so nothing was sent/],
       [503, "guardrail_unavailable", /nothing was sent: retry later with the same client_ref/],
+      [503, "provider_unavailable", /No email provider is configured/],
+      [422, "blocked_by_guardrail", /rewrite the subject or body/],
+      [402, "budget_exceeded", /retrying will not help until it is topped up/],
+      [403, "agent_not_active", /Nothing was sent\. Once the agent is active/],
+      [409, "no_capability_address", /Nothing was sent\. Once the agent is active with an email address/],
+      [403, "policy_declined", /needs a human's approval \(approval 31\): retry with the same client_ref/, { deny: { reason: "approval required", approval_id: 31 } }],
+      [403, "policy_declined", /spend policy declined this send \(see deny\)/, { deny: { reason: "domain blocked" } }],
     ];
-    for (const [status, code, hint] of cases) {
-      capture(() => HttpResponse.json({ success: false, code, message: code }, { status }));
+    for (const [status, code, hint, extra] of cases) {
+      capture(() =>
+        HttpResponse.json({ success: false, code, message: code, ...(extra ?? {}) }, { status }),
+      );
       const result = await emailSendTool.handler(
         { to: ["a@example.com"], subject: "s" },
         { client: client() },
@@ -301,9 +311,82 @@ describe("orcarouter_email_send", () => {
     expect(out).toContain("HTTP 504)");
     expect(out).toContain("The outcome is unknown");
     expect(out).toContain('Retry with the same client_ref "task-4"');
-    // The page is bounded and appears once in the summary, once in the JSON.
-    expect(out.length).toBeLessThan(1500);
+    // The page is bounded and quoted once.
+    expect(out.length).toBeLessThan(1000);
+    expect(out.split("Gateway Timeout").length - 1).toBeLessThanOrEqual(20);
+    expect(out).not.toContain('"message"');
     expect(page.length).toBeGreaterThan(50_000);
+  });
+
+  it("a proxy's prose `error` is not taken for an OrcaRouter code: the outcome is unknown", async () => {
+    capture(() => HttpResponse.json({ error: "upstream request timeout" }, { status: 504 }));
+    const result = await emailSendTool.handler(
+      { to: ["a@example.com"], subject: "s", client_ref: "task-6" },
+      { client: client() },
+    );
+    const out = text(result);
+    expect(out).toContain("failed (HTTP 504)");
+    expect(out).not.toContain("code upstream");
+    expect(out).toContain("The outcome is unknown");
+    expect(out).toContain('Retry with the same client_ref "task-6"');
+  });
+
+  // SystemPerformanceCheck refuses in the OpenAI shape before any handler.
+  it("an overload refusal reads error.code and says nothing was sent", async () => {
+    capture(() =>
+      HttpResponse.json(
+        {
+          error: {
+            message: "The service is temporarily overloaded. Please try again later.",
+            type: "new_api_error",
+            code: "system_cpu_overloaded",
+          },
+        },
+        { status: 503 },
+      ),
+    );
+    const result = await emailSendTool.handler(
+      { to: ["a@example.com"], subject: "s" },
+      { client: client() },
+    );
+    const out = text(result);
+    expect(out).toContain("HTTP 503, code system_cpu_overloaded");
+    expect(out).toContain("overloaded), so nothing was sent");
+    expect(out).not.toContain("The outcome is unknown");
+  });
+
+  it("refuses a blank client_ref, which the server would trim to none", async () => {
+    await expect(
+      emailSendTool.handler(
+        { to: ["a@example.com"], subject: "s", client_ref: "   " },
+        { client: client() },
+      ),
+    ).rejects.toThrow(/client_ref must not be blank/);
+  });
+
+  it("refuses a run_ref that would not reach the server as written", async () => {
+    const validate = makeValidator();
+    expect(validate({ to: ["a@example.com"], subject: "s", run_ref: "x".repeat(192) })).toBe(false);
+    for (const runRef of ["  ", " run-1", "run-1 ", "运行-1", "run\n1"]) {
+      await expect(
+        emailSendTool.handler(
+          { to: ["a@example.com"], subject: "s", run_ref: runRef },
+          { client: client() },
+        ),
+        JSON.stringify(runRef),
+      ).rejects.toThrow(/run_ref must be printable ASCII/);
+    }
+  });
+
+  it("an answer with no result claims no HTTP status it did not see", async () => {
+    capture(() => new HttpResponse(null, { status: 204 }));
+    const result = await emailSendTool.handler(
+      { to: ["a@example.com"], subject: "s", client_ref: "task-7" },
+      { client: client() },
+    );
+    expect(result.isError).toBe(true);
+    expect(text(result)).toContain("OrcaRouter's answer carried no result");
+    expect(text(result)).not.toContain("HTTP 200");
   });
 
   it("a 2xx that is not JSON: not reported as no answer, and the base URL is named", async () => {

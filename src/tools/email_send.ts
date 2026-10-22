@@ -1,6 +1,7 @@
 import { ApiError, MissingApiKeyError } from "../errors.js";
 import {
   capabilityErrorResult,
+  missingResultText,
   notJsonText,
   type CapabilityFailure,
 } from "./agent_capability.js";
@@ -42,8 +43,35 @@ const TOOL = "orcarouter_email_send";
 
 // The header the server reads a run reference from: the opt-in to charging
 // the send against that run's spend envelope (OrcaRouter
-// controller/agent_capability.go agentRunRefHeader).
+// controller/agent_capability.go agentRunRefHeader, at most 191 bytes).
 const RUN_REF_HEADER = "X-Orca-Run-Ref";
+
+// A header value travels as Latin-1 and fetch trims its surrounding
+// whitespace: a blank run_ref would arrive empty, which the server reads as
+// no opt-in (the send charged outside the run the caller named), and a
+// non-Latin-1 one throws before any request is made. So a run_ref is
+// printable ASCII with no surrounding space, which reaches the server as
+// written.
+const RUN_REF = /^[\x21-\x7e](?:[\x20-\x7e]*[\x21-\x7e])?$/;
+const RUN_REF_MAX = 191;
+
+// OrcaRouter's middleware refuses before the send handler runs when the
+// node is overloaded (OpenAI-shaped `error.code`): nothing was sent.
+const OVERLOADED = new Set([
+  "system_cpu_overloaded",
+  "system_memory_overloaded",
+  "system_disk_overloaded",
+]);
+
+// The 5xx codes the send handler itself answers, each with its own next step.
+// Any other 5xx — no code at all, or one this tool does not know — may come
+// from something in front of the handler after it called the provider.
+const HANDLER_5XX = new Set([
+  "provider_send_failed",
+  "provider_unavailable",
+  "internal_error",
+  "guardrail_unavailable",
+]);
 
 // When the send's fate is unknown — no answer, or an answer that did not come
 // from the send handler — the only safe retry reuses the key.
@@ -59,6 +87,14 @@ function unknownOutcome(clientRef?: string): string {
 // reused, or the email goes out twice; the key of a failed send can never
 // succeed again.
 function sendHint(f: CapabilityFailure, clientRef?: string): string | undefined {
+  if (f.code && OVERLOADED.has(f.code)) {
+    return "OrcaRouter refused before the send ran (overloaded), so nothing was sent: retry later with the same client_ref.";
+  }
+  if (f.status >= 500 && !(f.code && HANDLER_5XX.has(f.code))) {
+    // An edge or proxy timeout in front of the send handler, possibly after
+    // it had already called the provider.
+    return `This answer did not come from OrcaRouter's send handler (it may be a proxy in front of it). ${unknownOutcome(clientRef)}`;
+  }
   switch (f.code) {
     case "send_in_progress": {
       const retryRef =
@@ -81,19 +117,36 @@ function sendHint(f: CapabilityFailure, clientRef?: string): string | undefined 
     case "provider_send_failed":
       return "The provider refused this message, so it was not sent, and this client_ref is now spent: a retry needs a new client_ref.";
     case "internal_error":
-      return "Nothing reached the provider: retry with the same client_ref (back off first).";
+      // A 500 means the provider was never called. If the retry then keeps
+      // answering send_in_progress, the key's reservation is stuck, and the
+      // way out is a new key (OrcaRouter's skill, "Errors").
+      return f.status === 500
+        ? "Nothing reached the provider: retry with the same client_ref (back off first). If that keeps answering send_in_progress long after any send could still be running, the key is stuck: because this 500 means the provider was never called, re-send under a new client_ref, and tell the operator."
+        : "The spend policy could not be evaluated, so nothing was sent: back off and retry with the same client_ref.";
     case "guardrail_unavailable":
       return "The content policy could not be evaluated, so nothing was sent: retry later with the same client_ref.";
+    case "provider_unavailable":
+      return "No email provider is configured for this OrcaRouter deployment, so nothing was sent; retrying will not help until an operator fixes it.";
+    case "blocked_by_guardrail":
+      return "The workspace's content policy blocked this message: rewrite the subject or body. Retrying the same content is blocked again.";
+    case "budget_exceeded":
+      return "Out of money for this send (the workspace wallet, the agent's monthly cap, or the run's envelope), so nothing was sent; retrying will not help until it is topped up or the cap resets.";
+    case "policy_declined": {
+      const deny =
+        f.body.deny && typeof f.body.deny === "object"
+          ? (f.body.deny as Record<string, unknown>)
+          : {};
+      return typeof deny.approval_id === "number" && deny.approval_id > 0
+        ? `This send needs a human's approval (approval ${deny.approval_id}): retry with the same client_ref once it is approved.`
+        : "The workspace's spend policy declined this send (see deny): the same send is declined again.";
+    }
+    case "agent_not_active":
+    case "no_capability_address":
+      return "Nothing was sent. Once the agent is active with an email address, retry; if the same client_ref then answers send_key_burned, use a new one.";
     case undefined:
       if (f.status === 429) {
         const after = f.retryAfter !== undefined ? ` after ${f.retryAfter} s` : " shortly";
         return `Rate limited before the send ran, so nothing was sent: retry${after} with the same client_ref.`;
-      }
-      // A 5xx with no OrcaRouter code came from something in front of the
-      // send handler (an edge or proxy timeout), possibly after the handler
-      // had already called the provider.
-      if (f.status >= 500) {
-        return `No OrcaRouter error code came back, so this answer may be from a proxy in front of it. ${unknownOutcome(clientRef)}`;
       }
       return undefined;
     default:
@@ -162,7 +215,7 @@ export const emailSendTool: ToolDefinition<EmailSendInput> = {
       client_ref: {
         type: "string",
         description:
-          "Idempotency key, stored verbatim. Use a stable value tied 1:1 to " +
+          "Idempotency key; must not be blank. Use a stable value tied 1:1 to " +
           "this logical send (e.g. `task-1234`), never a timestamp. Same key " +
           "after a sent send → the original result; while still sending → " +
           "code send_in_progress (retry with this key); after a failed send " +
@@ -171,12 +224,14 @@ export const emailSendTool: ToolDefinition<EmailSendInput> = {
       run_ref: {
         type: "string",
         minLength: 1,
+        maxLength: RUN_REF_MAX,
         description:
           "A run reference your operator declared for this agent's run (a " +
           "spend envelope). The send is charged against that run and refused " +
           "once it is spent. Omit it unless you were given one: a run_ref " +
           "with no envelope declared has nothing to charge, so the send is " +
-          "refused (code budget_exceeded).",
+          "refused (code budget_exceeded). Printable ASCII, no surrounding " +
+          `spaces, at most ${RUN_REF_MAX} characters.`,
       },
     },
     required: ["to"],
@@ -202,6 +257,22 @@ export const emailSendTool: ToolDefinition<EmailSendInput> = {
     if (!hasContent) {
       throw new ValidationError(
         "at least one of subject, text or html must be non-blank",
+      );
+    }
+    // The server trims client_ref and mints a key of its own for a blank one,
+    // so a blank key dedupes nothing — and "retry with the same client_ref"
+    // would then send twice.
+    if (input.client_ref !== undefined && input.client_ref.trim().length === 0) {
+      throw new ValidationError(
+        "client_ref must not be blank: omit it, or pass a stable key such as task-1234",
+      );
+    }
+    if (
+      input.run_ref !== undefined &&
+      (input.run_ref.length > RUN_REF_MAX || !RUN_REF.test(input.run_ref))
+    ) {
+      throw new ValidationError(
+        `run_ref must be printable ASCII with no surrounding spaces, at most ${RUN_REF_MAX} characters`,
       );
     }
 
@@ -242,11 +313,8 @@ export const emailSendTool: ToolDefinition<EmailSendInput> = {
     }
 
     if (!envelope || envelope.success === false || !envelope.data) {
-      const code = envelope?.code ? `, code ${envelope.code}` : "";
       return errorResult(
-        `OrcaRouter email send failed (HTTP 200${code}): ` +
-          `${envelope?.message || "the response carried no send result"}. ` +
-          unknownOutcome(input.client_ref),
+        `${missingResultText("OrcaRouter email send", envelope)} ${unknownOutcome(input.client_ref)}`,
       );
     }
     const data = envelope.data;

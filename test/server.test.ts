@@ -47,6 +47,35 @@ describe("createOrcaRouterMcpServer", () => {
     expect(manifest.tools_generated).toBe(false);
   });
 
+  // The registry entry and the MCPB manifest each describe the API key; both
+  // have to name every tool that refuses to run without one.
+  it("server.json and manifest.json say which tools need the API key", () => {
+    const registry = JSON.parse(readFileSync("server.json", "utf8")) as {
+      packages: Array<{ environmentVariables: Array<{ name: string; description: string }> }>;
+    };
+    const keyVar = registry.packages[0].environmentVariables.find(
+      (v) => v.name === "ORCAROUTER_API_KEY",
+    );
+    const manifest = JSON.parse(readFileSync("manifest.json", "utf8")) as {
+      user_config: { api_key: { description: string } };
+    };
+    for (const doc of [keyVar!.description, manifest.user_config.api_key.description]) {
+      expect(doc).not.toMatch(/required only for orcarouter_chat/i);
+      expect(doc).toContain("orcarouter_chat");
+      expect(doc).toMatch(/bound to an agent/);
+    }
+    expect(keyVar!.description).toContain("orcarouter_email_send");
+    expect(keyVar!.description).toContain("orcarouter_email_messages");
+  });
+
+  // The MCP Registry schema caps ServerDetail.description at 100 characters;
+  // a longer one fails the publish step of the release workflow.
+  it("server.json's description fits the registry's 100-character limit", () => {
+    const registry = JSON.parse(readFileSync("server.json", "utf8")) as { description: string };
+    expect(registry.description.length).toBeGreaterThan(0);
+    expect(registry.description.length).toBeLessThanOrEqual(100);
+  });
+
   it("returns an MCP Server instance", () => {
     const built = createOrcaRouterMcpServer({ apiKey: "k", baseUrl: BASE });
     expect(built.server).toBeDefined();

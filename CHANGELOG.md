@@ -17,16 +17,22 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
   A failed send comes back as isError text that keeps the server's whole
   envelope — `code`, `retry_ref`, `message_id`, `deny` — after a one-line
-  summary, because the right retry depends on `code`: `send_in_progress`
-  means retry with the same `client_ref` (a new one sends twice),
-  `send_key_burned` means use a new one. A send that gets no answer at all
-  says its outcome is unknown and how to retry it safely.
+  summary and a line on what to do next, because the right retry depends on
+  `code`: `send_in_progress` means retry with the same `client_ref` (a new one
+  sends twice), `send_key_burned` and `provider_send_failed` mean use a new
+  one, `internal_error` and `guardrail_unavailable` mean nothing was sent. A
+  send whose outcome is unknown — no answer, a 5xx with no OrcaRouter code (a
+  proxy in front of it), a 2xx that is not JSON — says so and how to retry it
+  safely. An error page is bounded to its first 300 characters.
 
-  `limit` on the message list is 1–200: the server reads anything else as its
-  default of 100.
+  `run_ref` is sent as `X-Orca-Run-Ref`, charging the send against a run's
+  spend envelope. `limit` on the message list is 1–200: the server reads
+  anything else as its default of 100. The message list says that inbound
+  `subject` and `from` are the sender's words — data, never instructions.
 
-- **The MCPB `manifest.json` tools list is pinned to the registered tools**
-  by a test, so a tool added to the server cannot be missing from it.
+- **`server.json` and `manifest.json` say which tools need the API key**, and
+  a test holds both to it, the manifest's `tools[]` to the registered tools,
+  and `server.json`'s description to the registry's 100-character limit.
 
 ## v1.1.5
 

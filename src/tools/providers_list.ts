@@ -1,5 +1,5 @@
 import { ApiError } from "../errors.js";
-import { textResult, type ToolDefinition, type McpToolResult } from "./types.js";
+import { errorResult, textResult, type ToolDefinition, type McpToolResult } from "./types.js";
 
 interface ProvidersListInput {}
 
@@ -17,10 +17,6 @@ interface ProvidersListEnvelope {
     providers?: PublicProviderEntry[];
     unprefixed_model_count?: number;
   };
-}
-
-function errorResult(text: string): McpToolResult {
-  return { isError: true, content: [{ type: "text", text }] };
 }
 
 export const providersListTool: ToolDefinition<ProvidersListInput> = {

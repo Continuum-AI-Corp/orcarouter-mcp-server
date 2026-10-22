@@ -35,15 +35,20 @@ const keyless = () => new ApiClient({ baseUrl: BASE });
 function capture(reply: () => Response): {
   body?: Record<string, unknown>;
   auth?: string | null;
+  runRef?: string | null;
   calls: number;
 } {
-  const seen: { body?: Record<string, unknown>; auth?: string | null; calls: number } = {
-    calls: 0,
-  };
+  const seen: {
+    body?: Record<string, unknown>;
+    auth?: string | null;
+    runRef?: string | null;
+    calls: number;
+  } = { calls: 0 };
   server.use(
     http.post(SEND, async ({ request }) => {
       seen.calls++;
       seen.auth = request.headers.get("authorization");
+      seen.runRef = request.headers.get("x-orca-run-ref");
       seen.body = (await request.json()) as Record<string, unknown>;
       return reply();
     }),
@@ -64,7 +69,7 @@ describe("orcarouter_email_send", () => {
     expect(emailSendTool.inputSchema.required).toEqual(["to"]);
     expect(emailSendTool.inputSchema.additionalProperties).toBe(false);
     expect(Object.keys(emailSendTool.inputSchema.properties).sort()).toEqual(
-      ["cc", "client_ref", "html", "reply_to", "subject", "text", "to"],
+      ["cc", "client_ref", "html", "reply_to", "run_ref", "subject", "text", "to"],
     );
   });
 
@@ -86,6 +91,27 @@ describe("orcarouter_email_send", () => {
     await expect(
       emailSendTool.handler({ to: ["a@example.com"], subject: "", text: "" }, { client: client() }),
     ).rejects.toBeInstanceOf(ValidationError);
+    // The server trims before it checks, so blank is empty.
+    await expect(
+      emailSendTool.handler(
+        { to: ["a@example.com"], subject: "  ", text: "\n\t", html: " " },
+        { client: client() },
+      ),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("sends run_ref as the X-Orca-Run-Ref header, never in the body", async () => {
+    const seen = capture(sent);
+    await emailSendTool.handler(
+      { to: ["a@example.com"], subject: "s", run_ref: "run-77" },
+      { client: client() },
+    );
+    expect(seen.runRef).toBe("run-77");
+    expect(seen.body).toEqual({ to: ["a@example.com"], subject: "s" });
+
+    const without = capture(sent);
+    await emailSendTool.handler({ to: ["a@example.com"], subject: "s" }, { client: client() });
+    expect(without.runRef).toBeNull();
   });
 
   it("posts exactly the fields given, with the agent key, and returns the send result", async () => {
@@ -221,6 +247,83 @@ describe("orcarouter_email_send", () => {
       expect(result.isError).toBe(true);
       expect(text(result)).toContain(`HTTP ${status}, code ${code}`);
     }
+  });
+
+  it("says what to do next for each code that has a next step", async () => {
+    const cases: Array<[number, string, RegExp]> = [
+      [502, "provider_send_failed", /not sent, and this client_ref is now spent: a retry needs a new client_ref/],
+      [500, "internal_error", /Nothing reached the provider: retry with the same client_ref/],
+      [503, "internal_error", /Nothing reached the provider: retry with the same client_ref/],
+      [503, "guardrail_unavailable", /nothing was sent: retry later with the same client_ref/],
+    ];
+    for (const [status, code, hint] of cases) {
+      capture(() => HttpResponse.json({ success: false, code, message: code }, { status }));
+      const result = await emailSendTool.handler(
+        { to: ["a@example.com"], subject: "s" },
+        { client: client() },
+      );
+      expect(result.isError, code).toBe(true);
+      expect(text(result), code).toMatch(hint);
+    }
+  });
+
+  it("rate limited (no code): nothing was sent, retry after the server's wait", async () => {
+    capture(
+      () =>
+        new HttpResponse("too many requests", {
+          status: 429,
+          headers: { "retry-after": "12" },
+        }),
+    );
+    const result = await emailSendTool.handler(
+      { to: ["a@example.com"], subject: "s", client_ref: "task-3" },
+      { client: client() },
+    );
+    expect(result.isError).toBe(true);
+    expect(text(result)).toContain("nothing was sent: retry after 12 s with the same client_ref");
+    expect(JSON.parse(text(result).slice(text(result).indexOf("{"))).retry_after).toBe(12);
+  });
+
+  // An edge or proxy timeout in front of the send handler: no OrcaRouter
+  // code, possibly after the handler had already called the provider.
+  it("a 5xx with no OrcaRouter code: the outcome is unknown, and the page is not dumped", async () => {
+    const page = `<html><body>${"<p>Gateway Timeout</p>".repeat(3000)}</body></html>`;
+    capture(
+      () =>
+        new HttpResponse(page, { status: 504, headers: { "content-type": "text/html" } }),
+    );
+    const result = await emailSendTool.handler(
+      { to: ["a@example.com"], subject: "s", client_ref: "task-4" },
+      { client: client() },
+    );
+    const out = text(result);
+    expect(result.isError).toBe(true);
+    expect(out).toContain("HTTP 504)");
+    expect(out).toContain("The outcome is unknown");
+    expect(out).toContain('Retry with the same client_ref "task-4"');
+    // The page is bounded and appears once in the summary, once in the JSON.
+    expect(out.length).toBeLessThan(1500);
+    expect(page.length).toBeGreaterThan(50_000);
+  });
+
+  it("a 2xx that is not JSON: not reported as no answer, and the base URL is named", async () => {
+    capture(
+      () =>
+        new HttpResponse("<!doctype html><title>Sign in</title>", {
+          status: 200,
+          headers: { "content-type": "text/html" },
+        }),
+    );
+    const result = await emailSendTool.handler(
+      { to: ["a@example.com"], subject: "s", client_ref: "task-5" },
+      { client: client() },
+    );
+    const out = text(result);
+    expect(result.isError).toBe(true);
+    expect(out).toContain("the answer was not JSON");
+    expect(out).toContain("ORCAROUTER_BASE_URL");
+    expect(out).not.toContain("no answer from OrcaRouter");
+    expect(out).toContain('Retry with the same client_ref "task-5"');
   });
 
   it("no answer at all: the outcome is unknown, so retry with the same client_ref", async () => {
